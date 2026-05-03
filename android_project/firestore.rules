@@ -217,14 +217,28 @@ service cloud.firestore {
         && request.resource.data.date is timestamp
         && request.resource.data.createdAt is timestamp;
 
-      // Owner can edit their own tx (admin can edit any within family).
+      // Updates:
+      //   * Owner or admin: can change anything (amount, type, category, date, recurrence, paid).
+      //   * Any family member: may toggle ONLY the `paid` field (everything else unchanged).
       allow update: if isSignedIn()
         && isMemberOf(resource.data.familyId)
-        && (resource.data.userId == uid() || isAdminOf(resource.data.familyId))
         && request.resource.data.familyId == resource.data.familyId
         && request.resource.data.userId == resource.data.userId
         && request.resource.data.amount > 0
-        && request.resource.data.type in ["income", "expense"];
+        && request.resource.data.type in ["income", "expense"]
+        && (
+          // Owner or admin: full edit rights.
+          (resource.data.userId == uid() || isAdminOf(resource.data.familyId))
+          ||
+          // Any other member: only `paid` may differ.
+          (
+            request.resource.data.amount == resource.data.amount
+            && request.resource.data.type == resource.data.type
+            && request.resource.data.categoryId == resource.data.categoryId
+            && request.resource.data.date == resource.data.date
+            && request.resource.data.recurrence == resource.data.recurrence
+          )
+        );
 
       allow delete: if isSignedIn()
         && isMemberOf(resource.data.familyId)

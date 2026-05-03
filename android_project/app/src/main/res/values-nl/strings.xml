@@ -3,6 +3,7 @@
 
     <string name="action_save">Opslaan</string>
     <string name="action_cancel">Annuleren</string>
+    <string name="action_confirm">Bevestigen</string>
     <string name="action_delete">Verwijderen</string>
     <string name="action_remove">Verwijderen</string>
     <string name="action_add">Toevoegen</string>
@@ -39,9 +40,17 @@
     <string name="dashboard_income">Inkomsten</string>
     <string name="dashboard_expenses">Uitgaven</string>
     <string name="dashboard_remaining">Resterend</string>
+    <string name="dashboard_unpaid">Onbetaald</string>
     <string name="dashboard_view_transactions">Alle transacties bekijken</string>
+    <string name="dashboard_view_all_history">Volledige transactiegeschiedenis</string>
     <string name="dashboard_six_month_chart">Laatste 6 maanden</string>
+    <string name="dashboard_show_chart">Toon 6-maandengrafiek</string>
+    <string name="dashboard_hide_chart">Verberg grafiek</string>
     <string name="dashboard_no_transactions">Deze maand nog geen transacties.</string>
+    <string name="dashboard_no_income">Deze maand nog geen inkomsten geregistreerd.</string>
+    <string name="dashboard_no_expenses">Deze maand nog geen uitgaven geregistreerd.</string>
+    <string name="dashboard_uncheck_all">Alles op onbetaald zetten</string>
+    <string name="dashboard_uncheck_all_confirm">Hiermee worden alle uitgaven van de huidige maand teruggezet op onbetaald. Doorgaan?</string>
 
     <string name="tx_title">Transacties</string>
     <string name="tx_add_title">Transactie toevoegen</string>

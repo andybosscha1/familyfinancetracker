@@ -3,11 +3,13 @@ package com.timmat.financetracker.ui.dashboard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.timmat.financetracker.data.model.AppCurrency
+import com.timmat.financetracker.data.model.Category
 import com.timmat.financetracker.data.model.Family
 import com.timmat.financetracker.data.model.Role
 import com.timmat.financetracker.data.model.Transaction
 import com.timmat.financetracker.data.model.TxType
 import com.timmat.financetracker.data.repository.AuthRepository
+import com.timmat.financetracker.data.repository.CategoryRepository
 import com.timmat.financetracker.data.repository.FamilyRepository
 import com.timmat.financetracker.data.repository.SettingsRepository
 import com.timmat.financetracker.data.repository.TransactionRepository
@@ -37,7 +39,13 @@ data class DashboardUiState(
     val monthlyIncome: Double = 0.0,
     val monthlyExpense: Double = 0.0,
     val monthlyRemaining: Double = 0.0,
+    val unpaidTotal: Double = 0.0,
+    val incomeTransactions: List<Transaction> = emptyList(),
+    val expenseTransactions: List<Transaction> = emptyList(),
+    /** categoryId -> name lookup for rendering rows. */
+    val categoryNames: Map<String, String> = emptyMap(),
     val history: List<MonthBar> = emptyList(),
+    val chartExpanded: Boolean = false,
     val loading: Boolean = true,
     val error: String? = null,
 )
@@ -47,6 +55,7 @@ class DashboardViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val familyRepository: FamilyRepository,
     private val transactionRepository: TransactionRepository,
+    private val categoryRepository: CategoryRepository,
     private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
@@ -65,17 +74,30 @@ class DashboardViewModel @Inject constructor(
             // Fire-and-forget one-off cleanup (idempotent, gated by SharedPreferences).
             launch { runCleanupIfNewMonth(familyId) }
 
-            // Current month live totals
+            // Live category map
+            launch {
+                categoryRepository.observe(familyId).collect { cats ->
+                    _state.update { it.copy(categoryNames = cats.associate { c -> c.id to c.name }) }
+                }
+            }
+
+            // Current month live data
             launch {
                 transactionRepository.observeCurrentMonth(familyId).collect { txs ->
-                    val income = txs.filter { it.typeEnum == TxType.income }.sumOf { it.amount }
-                    val expense = txs.filter { it.typeEnum == TxType.expense }.sumOf { it.amount }
+                    val income = txs.filter { it.typeEnum == TxType.income }
+                    val expense = txs.filter { it.typeEnum == TxType.expense }
+                    val incomeSum = income.sumOf { it.amount }
+                    val expenseSum = expense.sumOf { it.amount }
+                    val unpaidSum = expense.filter { !it.paid }.sumOf { it.amount }
                     _state.update {
                         it.copy(
                             loading = false,
-                            monthlyIncome = income,
-                            monthlyExpense = expense,
-                            monthlyRemaining = income - expense,
+                            monthlyIncome = incomeSum,
+                            monthlyExpense = expenseSum,
+                            monthlyRemaining = incomeSum - expenseSum,
+                            unpaidTotal = unpaidSum,
+                            incomeTransactions = income.sortedByDescending { tx -> tx.date.seconds },
+                            expenseTransactions = expense.sortedByDescending { tx -> tx.date.seconds },
                             currentMonthLabel = currentMonthLabel(),
                             currencyCode = settingsRepository.currency.code,
                         )
@@ -89,8 +111,36 @@ class DashboardViewModel @Inject constructor(
                     _state.update { it.copy(history = buildHistory(txs)) }
                 }
             }
+
+            // React to currency changes
+            launch {
+                settingsRepository.observe().collect {
+                    _state.update { it.copy(currencyCode = settingsRepository.currency.code) }
+                }
+            }
         }
     }
+
+    fun togglePaid(transaction: Transaction, paid: Boolean) {
+        if (transaction.id.isBlank()) return
+        viewModelScope.launch {
+            runCatching { transactionRepository.setPaid(transaction.id, paid) }
+                .onFailure { e -> _state.update { it.copy(error = e.message) } }
+        }
+    }
+
+    fun uncheckAllPaid(familyId: String) {
+        viewModelScope.launch {
+            runCatching { transactionRepository.markAllExpensesUnpaidForCurrentMonth(familyId) }
+                .onFailure { e -> _state.update { it.copy(error = e.message) } }
+        }
+    }
+
+    fun toggleChart() {
+        _state.update { it.copy(chartExpanded = !it.chartExpanded) }
+    }
+
+    fun clearError() = _state.update { it.copy(error = null) }
 
     private fun runCleanupIfNewMonth(familyId: String) {
         val key = currentMonthKey()

@@ -81,6 +81,7 @@ class TransactionRepository @Inject constructor(
                 "categoryId" to categoryId,
                 "date" to Timestamp(date),
                 "recurrence" to recurrence.name,
+                "paid" to false,
                 "createdAt" to Timestamp.now(),
             )
         ).await()
@@ -88,6 +89,33 @@ class TransactionRepository @Inject constructor(
 
     suspend fun delete(txId: String) {
         col.document(txId).delete().await()
+    }
+
+    /** Toggles the paid flag on an expense transaction. Any family member is allowed. */
+    suspend fun setPaid(txId: String, paid: Boolean) {
+        col.document(txId).update("paid", paid).await()
+    }
+
+    /**
+     * Resets `paid = false` for every expense transaction of [familyId] in the current month.
+     * Useful at the start of a new pay-cycle so members can re-tick what they’ve paid.
+     */
+    suspend fun markAllExpensesUnpaidForCurrentMonth(familyId: String): Int {
+        val (start, end) = currentMonthRange()
+        val snap = col
+            .whereEqualTo("familyId", familyId)
+            .whereEqualTo("type", TxType.expense.name)
+            .whereGreaterThanOrEqualTo("date", Timestamp(start))
+            .whereLessThan("date", Timestamp(end))
+            .get().await()
+        if (snap.isEmpty) return 0
+        // Firestore batch limit = 500. Chunk to be safe.
+        snap.documents.chunked(400).forEach { chunk ->
+            val batch = firestore.batch()
+            chunk.forEach { doc -> batch.update(doc.reference, "paid", false) }
+            batch.commit().await()
+        }
+        return snap.size()
     }
 
     /**

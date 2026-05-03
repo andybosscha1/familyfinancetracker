@@ -16,6 +16,8 @@ data class Transaction(
     val categoryId: String = "",
     val date: Timestamp = Timestamp.now(),
     val recurrence: String = Recurrence.none.name,
+    /** Only meaningful for expenses. true = bill has been paid. */
+    val paid: Boolean = false,
     @ServerTimestamp val createdAt: Timestamp? = null,
 ) {
     val typeEnum: TxType

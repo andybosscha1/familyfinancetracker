@@ -4,6 +4,7 @@
     <!-- Common -->
     <string name="action_save">Save</string>
     <string name="action_cancel">Cancel</string>
+    <string name="action_confirm">Confirm</string>
     <string name="action_delete">Delete</string>
     <string name="action_remove">Remove</string>
     <string name="action_add">Add</string>
@@ -43,9 +44,17 @@
     <string name="dashboard_income">Income</string>
     <string name="dashboard_expenses">Expenses</string>
     <string name="dashboard_remaining">Remaining</string>
+    <string name="dashboard_unpaid">Unpaid</string>
     <string name="dashboard_view_transactions">View all transactions</string>
+    <string name="dashboard_view_all_history">View full transaction history</string>
     <string name="dashboard_six_month_chart">Last 6 months</string>
+    <string name="dashboard_show_chart">Show 6-month chart</string>
+    <string name="dashboard_hide_chart">Hide chart</string>
     <string name="dashboard_no_transactions">No transactions yet this month.</string>
+    <string name="dashboard_no_income">No income recorded this month.</string>
+    <string name="dashboard_no_expenses">No expenses recorded this month.</string>
+    <string name="dashboard_uncheck_all">Mark all as unpaid</string>
+    <string name="dashboard_uncheck_all_confirm">This will reset every expense for the current month back to unpaid. Continue?</string>
 
     <!-- Transactions -->
     <string name="tx_title">Transactions</string>
