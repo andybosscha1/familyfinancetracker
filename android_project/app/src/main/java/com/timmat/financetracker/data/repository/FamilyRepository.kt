@@ -1,7 +1,9 @@
 package com.timmat.financetracker.data.repository
 
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import com.timmat.financetracker.common.DefaultCategories
 import com.timmat.financetracker.data.model.Family
 import com.timmat.financetracker.data.model.FamilyMember
@@ -121,5 +123,56 @@ class FamilyRepository @Inject constructor(
             )
             batch.update(familyRef, "memberIds", FieldValue.arrayUnion(requesterUid))
         }.await()
+    }
+
+    /**
+     * Cascade-deletes a whole family. Only the original creator can do this
+     * (Firestore rules enforce `createdBy == uid`).
+     *
+     * Order matters: child docs first, then the family doc, then the caller's
+     * own membership last. The reason: most child rules use `isMemberOf(...)`
+     * which reads the families doc, and the families-doc delete rule itself
+     * uses `isAdminOf(...)` which reads the caller's familyMembers doc. So we
+     * preserve both until the very end.
+     *
+     * Each step batches docs in chunks of 400 to stay under Firestore's 500
+     * write limit per batch.
+     */
+    suspend fun deleteFamilyCascade(familyId: String, currentUid: String) {
+        val transactions = firestore.collection("transactions")
+        val budgets = firestore.collection("budgets")
+        val invitations = firestore.collection("invitations")
+
+        deleteAllInQuery(transactions.whereEqualTo("familyId", familyId))
+        deleteAllInQuery(budgets.whereEqualTo("familyId", familyId))
+        deleteAllInQuery(categories.whereEqualTo("familyId", familyId))
+        deleteAllInQuery(invitations.whereEqualTo("familyId", familyId))
+
+        // Delete every OTHER member's familyMembers doc; keep the caller's
+        // membership alive so the families-delete rule still sees them as admin.
+        val memberDocs = members.whereEqualTo("familyId", familyId).get().await().documents
+        val (own, others) = memberDocs.partition { it.getString("userId") == currentUid }
+        deleteDocsInBatches(others)
+
+        // Delete the family doc itself (rule: admin && createdBy == uid).
+        families.document(familyId).delete().await()
+
+        // Finally delete the caller's own membership doc (rule: userId == uid).
+        deleteDocsInBatches(own)
+    }
+
+    private suspend fun deleteAllInQuery(q: Query) {
+        val snap = q.get().await()
+        if (snap.isEmpty) return
+        deleteDocsInBatches(snap.documents)
+    }
+
+    private suspend fun deleteDocsInBatches(docs: List<DocumentSnapshot>) {
+        if (docs.isEmpty()) return
+        docs.chunked(400).forEach { chunk ->
+            val batch = firestore.batch()
+            chunk.forEach { batch.delete(it.reference) }
+            batch.commit().await()
+        }
     }
 }

@@ -3,6 +3,7 @@ package com.timmat.financetracker.ui.family
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.timmat.financetracker.data.model.Category
+import com.timmat.financetracker.data.model.Family
 import com.timmat.financetracker.data.model.FamilyMember
 import com.timmat.financetracker.data.model.Invitation
 import com.timmat.financetracker.data.model.Role
@@ -22,6 +23,9 @@ import javax.inject.Inject
 
 data class FamilyUiState(
     val isAdmin: Boolean = false,
+    /** True iff the current user is the original creator of the family (only they can delete it). */
+    val isCreator: Boolean = false,
+    val family: Family? = null,
     val members: List<FamilyMember> = emptyList(),
     /** Map of userId -> resolved User profile (firstName/lastName/email). Missing users render as email/uid fallback. */
     val profiles: Map<String, User> = emptyMap(),
@@ -31,6 +35,9 @@ data class FamilyUiState(
     val info: String? = null,
     /** The most recently created invitation code — shown prominently so the admin can share it. */
     val lastCreatedCode: String? = null,
+    val deleting: Boolean = false,
+    /** Set after a successful family deletion so the Composable can navigate away. */
+    val deleted: Boolean = false,
 ) {
     /** Join requests awaiting admin approval. */
     val pendingRequests: List<Invitation>
@@ -57,7 +64,14 @@ class FamilyViewModel @Inject constructor(
         viewModelScope.launch {
             val uid = authRepository.currentUser?.uid.orEmpty()
             val role = familyRepository.currentUserRole(familyId, uid)
-            _state.update { it.copy(isAdmin = role == Role.admin) }
+            val family = familyRepository.getFamily(familyId)
+            _state.update {
+                it.copy(
+                    family = family,
+                    isAdmin = role == Role.admin,
+                    isCreator = family?.createdBy == uid,
+                )
+            }
 
             launch {
                 familyRepository.observeMembers(familyId).collect { list ->
@@ -142,6 +156,18 @@ class FamilyViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { invitationRepository.delete(invitationId) }
                 .onFailure { err -> _state.update { it.copy(error = err.message) } }
+        }
+    }
+
+    /** Cascade-deletes the entire family. Only the creator should be able to invoke this. */
+    fun deleteFamily(familyId: String) {
+        val uid = authRepository.currentUser?.uid ?: return
+        if (!_state.value.isCreator) return
+        viewModelScope.launch {
+            _state.update { it.copy(deleting = true, error = null) }
+            runCatching { familyRepository.deleteFamilyCascade(familyId, uid) }
+                .onSuccess { _state.update { it.copy(deleting = false, deleted = true) } }
+                .onFailure { err -> _state.update { it.copy(deleting = false, error = err.message) } }
         }
     }
 

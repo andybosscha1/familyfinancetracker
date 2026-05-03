@@ -6,11 +6,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.timmat.financetracker.R
@@ -23,6 +26,7 @@ import com.timmat.financetracker.data.model.User
 fun FamilyManagementScreen(
     familyId: String,
     onBack: () -> Unit,
+    onFamilyDeleted: () -> Unit,
     viewModel: FamilyViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -30,6 +34,7 @@ fun FamilyManagementScreen(
 
     var email by remember { mutableStateOf("") }
     var newCategory by remember { mutableStateOf("") }
+    var showDeleteDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Surface info/error as snackbars
@@ -42,6 +47,11 @@ fun FamilyManagementScreen(
             snackbarHostState.showSnackbar(it)
             viewModel.clearMessages()
         }
+    }
+
+    // Navigate away once the family has been deleted.
+    LaunchedEffect(state.deleted) {
+        if (state.deleted) onFamilyDeleted()
     }
 
     Scaffold(
@@ -175,7 +185,7 @@ fun FamilyManagementScreen(
                 MemberCard(
                     member = member,
                     profile = state.profiles[member.userId],
-                    canRemove = state.isAdmin,
+                    canRemove = state.isAdmin && state.family?.createdBy != member.userId,
                     onRemove = { viewModel.removeMember(familyId, member.userId) },
                 )
             }
@@ -228,8 +238,129 @@ fun FamilyManagementScreen(
                     }
                 }
             }
+
+            // -------- Danger zone (creator only) --------
+            if (state.isCreator) {
+                item {
+                    Spacer(Modifier.height(16.dp))
+                    HorizontalDivider()
+                    Text(
+                        stringResource(R.string.family_danger_zone),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f),
+                        ),
+                    ) {
+                        Column(Modifier.padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Filled.Warning,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    stringResource(R.string.family_delete_warning_short),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                )
+                            }
+                            Spacer(Modifier.height(12.dp))
+                            Button(
+                                onClick = { showDeleteDialog = true },
+                                enabled = !state.deleting,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error,
+                                    contentColor = Color.White,
+                                ),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                if (state.deleting) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp,
+                                        color = Color.White,
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                }
+                                Text(stringResource(R.string.family_delete_button))
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                }
+            }
+        }
+
+        if (showDeleteDialog) {
+            DeleteFamilyDialog(
+                familyName = state.family?.name.orEmpty(),
+                onDismiss = { showDeleteDialog = false },
+                onConfirm = {
+                    showDeleteDialog = false
+                    viewModel.deleteFamily(familyId)
+                },
+            )
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DeleteFamilyDialog(
+    familyName: String,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    var typed by remember { mutableStateOf("") }
+    val matches = typed.trim() == familyName.trim() && familyName.isNotBlank()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                Icons.Filled.Warning,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+            )
+        },
+        title = { Text(stringResource(R.string.family_delete_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.family_delete_warning_long))
+                Text(
+                    stringResource(R.string.family_delete_type_name_hint, familyName),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                )
+                OutlinedTextField(
+                    value = typed,
+                    onValueChange = { typed = it },
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.onboarding_family_name)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = matches,
+                onClick = onConfirm,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error,
+                ),
+            ) { Text(stringResource(R.string.family_delete_confirm)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        },
+    )
 }
 
 @Composable

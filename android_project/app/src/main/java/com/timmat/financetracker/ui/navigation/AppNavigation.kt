@@ -92,6 +92,13 @@ fun AppNavigation() {
             FamilyManagementScreen(
                 familyId = familyId,
                 onBack = { navController.popBackStack() },
+                onFamilyDeleted = {
+                    // After cascade delete, jump back to Onboarding so the user
+                    // can pick another family or create a new one.
+                    navController.navigate(Routes.ONBOARDING) {
+                        popUpTo(0)
+                    }
+                },
             )
         }
         composable(Routes.SETTINGS) {

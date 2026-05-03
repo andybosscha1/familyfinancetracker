@@ -93,6 +93,15 @@
     <string name="family_request_code_label">Code %1$s</string>
     <string name="family_member_loading">Loading…</string>
 
+    <!-- Family danger zone (creator-only) -->
+    <string name="family_danger_zone">Danger zone</string>
+    <string name="family_delete_button">Delete this family</string>
+    <string name="family_delete_title">Delete family?</string>
+    <string name="family_delete_warning_short">Only the creator can delete the family. This permanently removes everything.</string>
+    <string name="family_delete_warning_long">This will permanently delete the family and all of its members, transactions, budgets, categories and invitations. Other members will lose access immediately. This action cannot be undone.</string>
+    <string name="family_delete_type_name_hint">Type \"%1$s\" to confirm:</string>
+    <string name="family_delete_confirm">Delete forever</string>
+
     <!-- Settings -->
     <string name="settings_title">Settings</string>
     <string name="settings_language">Language</string>
