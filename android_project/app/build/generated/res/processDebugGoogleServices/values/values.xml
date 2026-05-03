@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="default_web_client_id" translatable="false">743564796265-qukum9s72jqvdbbvjd5v4tla1ji4pmsl.apps.googleusercontent.com</string>
+    <string name="gcm_defaultSenderId" translatable="false">743564796265</string>
+    <string name="google_api_key" translatable="false">AIzaSyAPdhF0cIF1MRcr9nXvQs7C2KZQ1oyaTog</string>
+    <string name="google_app_id" translatable="false">1:743564796265:android:ed6154b184cb2b71231df8</string>
+    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyAPdhF0cIF1MRcr9nXvQs7C2KZQ1oyaTog</string>
+    <string name="google_storage_bucket" translatable="false">financetracker-79c76.firebasestorage.app</string>
+    <string name="project_id" translatable="false">financetracker-79c76</string>
+</resources>

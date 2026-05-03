@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#0F172A</color>
+    <string name="action_add">Add</string>
+    <string name="action_approve">Approve</string>
+    <string name="action_back">Back</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_copy">Copy</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_open">Open</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="action_reject">Reject</string>
+    <string name="action_remove">Remove</string>
+    <string name="action_save">Save</string>
+    <string name="action_sign_out">Sign out</string>
+    <string name="app_name">Finance Tracker</string>
+    <string name="budgets_monthly_limit">Monthly limit</string>
+    <string name="budgets_not_admin">Only admins can edit monthly limits.</string>
+    <string name="budgets_remove_confirm">Remove this budget? The category stays available for expenses.</string>
+    <string name="budgets_removed">Budget removed</string>
+    <string name="budgets_saved">Budget saved</string>
+    <string name="budgets_title">Budgets</string>
+    <string name="currency_eur">Euro (€)</string>
+    <string name="currency_gbp">British Pound (£)</string>
+    <string name="currency_jpy">Japanese Yen (¥)</string>
+    <string name="currency_usd">US Dollar ($)</string>
+    <string name="dashboard_expenses">Expenses</string>
+    <string name="dashboard_income">Income</string>
+    <string name="dashboard_no_transactions">No transactions yet this month.</string>
+    <string name="dashboard_remaining">Remaining</string>
+    <string name="dashboard_six_month_chart">Last 6 months</string>
+    <string name="dashboard_view_transactions">View all transactions</string>
+    <string name="default_web_client_id" translatable="false">743564796265-qukum9s72jqvdbbvjd5v4tla1ji4pmsl.apps.googleusercontent.com</string>
+    <string name="family_categories_title">Categories</string>
+    <string name="family_code_copied">Code copied to clipboard</string>
+    <string name="family_generate_code">Generate invitation code</string>
+    <string name="family_invitations_title">Issued codes</string>
+    <string name="family_invite_email">Email address</string>
+    <string name="family_invite_title">Invite a member</string>
+    <string name="family_member_loading">Loading…</string>
+    <string name="family_member_notice">You are a member. Only admins can invite or remove users and manage categories.</string>
+    <string name="family_members_title">Members</string>
+    <string name="family_new_category">New category</string>
+    <string name="family_no_requests">No pending join requests.</string>
+    <string name="family_request_code_label">Code %1$s</string>
+    <string name="family_requests_title">Pending join requests</string>
+    <string name="family_share_code_hint">Share this 6-digit code with the invitee. They type it on the \"Join with code\" screen.</string>
+    <string name="family_title">Family</string>
+    <string name="gcm_defaultSenderId" translatable="false">743564796265</string>
+    <string name="google_api_key" translatable="false">AIzaSyAPdhF0cIF1MRcr9nXvQs7C2KZQ1oyaTog</string>
+    <string name="google_app_id" translatable="false">1:743564796265:android:ed6154b184cb2b71231df8</string>
+    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyAPdhF0cIF1MRcr9nXvQs7C2KZQ1oyaTog</string>
+    <string name="google_storage_bucket" translatable="false">financetracker-79c76.firebasestorage.app</string>
+    <string name="lang_dutch">Dutch</string>
+    <string name="lang_english">English</string>
+    <string name="login_continue_google">Continue with Google</string>
+    <string name="login_subtitle">Track income, expenses and budgets together.</string>
+    <string name="login_title">Family Finance</string>
+    <string name="nav_budgets">Budgets</string>
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_family">Family</string>
+    <string name="nav_settings">Settings</string>
+    <string name="onboarding_add_another">Add another family</string>
+    <string name="onboarding_create_button">Create family</string>
+    <string name="onboarding_create_hint">You\'ll become the admin of the new family.</string>
+    <string name="onboarding_creating">Creating…</string>
+    <string name="onboarding_family_name">Family name</string>
+    <string name="onboarding_intro_body">Create a new family as its admin, or join one that invited you.</string>
+    <string name="onboarding_intro_title">Let\'s get you set up.</string>
+    <string name="onboarding_invitation_code">Invitation code</string>
+    <string name="onboarding_join_button">Request to join</string>
+    <string name="onboarding_join_hint">Enter the 6-digit code an admin shared with you.</string>
+    <string name="onboarding_joining">Submitting…</string>
+    <string name="onboarding_member_count">%1$d member(s)</string>
+    <string name="onboarding_mode_create">Create family</string>
+    <string name="onboarding_mode_join">Join with code</string>
+    <string name="onboarding_request_submitted">Request submitted. Waiting for an admin to approve you.</string>
+    <string name="onboarding_title">Welcome</string>
+    <string name="onboarding_your_families">Your families</string>
+    <string name="project_id" translatable="false">financetracker-79c76</string>
+    <string name="settings_about_body">Changes apply immediately. Language affects labels; currency affects amount formatting across the app.</string>
+    <string name="settings_about_heading">About</string>
+    <string name="settings_currency">Currency</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_title">Settings</string>
+    <string name="tx_add_title">Add transaction</string>
+    <string name="tx_amount">Amount</string>
+    <string name="tx_category">Category</string>
+    <string name="tx_expense">Expense</string>
+    <string name="tx_income">Income</string>
+    <string name="tx_recurrence">Recurrence</string>
+    <string name="tx_recurrence_monthly">Monthly</string>
+    <string name="tx_recurrence_none">One-off</string>
+    <string name="tx_saving">Saving…</string>
+    <string name="tx_title">Transactions</string>
+    <style name="Theme.FinanceTracker" parent="android:Theme.Material.Light.NoActionBar"/>
+</resources>
