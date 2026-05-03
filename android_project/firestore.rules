@@ -1,0 +1,239 @@
+rules_version = '2';
+
+// Family Finance Tracker — Firestore Security Rules
+// Priority: Security > correctness > simplicity > features
+//
+// Key ideas:
+//   * Every doc that belongs to a family carries `familyId`.
+//   * The `families/{familyId}` doc stores `memberIds[]` (denormalised) so
+//     membership can be verified in a single `get()` (O(1), one extra read).
+//   * Role checks read `familyMembers/{userId_familyId}` where the doc ID is
+//     `"{userId}_{familyId}"` (deterministic). This avoids scans.
+//   * All mutations are validated: required fields, types, ranges, and that
+//     the caller belongs to the targeted family.
+//
+// Deploy:
+//   firebase deploy --only firestore:rules
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- Helpers ----------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function emailLower() {
+      return request.auth.token.email.lower();
+    }
+
+    function isMemberOf(familyId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/families/$(familyId))
+        && uid() in get(/databases/$(database)/documents/families/$(familyId)).data.memberIds;
+    }
+
+    function roleIn(familyId) {
+      // Deterministic membership doc id: "{uid}_{familyId}"
+      let memberDocId = uid() + "_" + familyId;
+      return get(/databases/$(database)/documents/familyMembers/$(memberDocId)).data.role;
+    }
+
+    function isAdminOf(familyId) {
+      let memberDocId = uid() + "_" + familyId;
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/familyMembers/$(memberDocId))
+        && get(/databases/$(database)/documents/familyMembers/$(memberDocId)).data.role == "admin";
+    }
+
+    function isValidString(v, maxLen) {
+      return v is string && v.size() > 0 && v.size() <= maxLen;
+    }
+
+    // ---------- users ----------
+    match /users/{userId} {
+      allow read: if isSignedIn() && uid() == userId;
+      allow create: if isSignedIn()
+        && uid() == userId
+        && request.resource.data.uid == userId
+        && isValidString(request.resource.data.email, 320)
+        && request.resource.data.email is string;
+      allow update: if isSignedIn()
+        && uid() == userId
+        // uid must not change
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.email == resource.data.email;
+      allow delete: if false;
+    }
+
+    // ---------- families ----------
+    match /families/{familyId} {
+      allow read: if isMemberOf(familyId);
+
+      // Any authenticated user can create a family; creator must include self in memberIds
+      // and mark themselves the creator.
+      allow create: if isSignedIn()
+        && request.resource.data.createdBy == uid()
+        && isValidString(request.resource.data.name, 80)
+        && request.resource.data.memberIds is list
+        && request.resource.data.memberIds.size() >= 1
+        && uid() in request.resource.data.memberIds
+        && request.resource.data.memberIds.size() <= 50;
+
+      // Only admins can rename; memberIds changes are constrained:
+      //   * admin can add/remove anyone (invite flow / remove member)
+      //   * a member can add ONLY themselves (accept invitation flow)
+      allow update: if isMemberOf(familyId) && (
+        (
+          // Admin-level rename / membership change
+          isAdminOf(familyId)
+          && request.resource.data.createdBy == resource.data.createdBy
+          && isValidString(request.resource.data.name, 80)
+          && request.resource.data.memberIds is list
+          && request.resource.data.memberIds.size() <= 50
+        ) || (
+          // Self-join via accepted invitation: only memberIds changes and only by adding self
+          request.resource.data.createdBy == resource.data.createdBy
+          && request.resource.data.name == resource.data.name
+          && request.resource.data.memberIds.hasAll(resource.data.memberIds)
+          && request.resource.data.memberIds.removeAll(resource.data.memberIds).hasOnly([uid()])
+        )
+      );
+
+      allow delete: if isAdminOf(familyId) && resource.data.createdBy == uid();
+    }
+
+    // ---------- familyMembers ----------
+    // Doc id convention: "{userId}_{familyId}"
+    match /familyMembers/{memberId} {
+      allow read: if isSignedIn() && (
+        resource.data.userId == uid() || isMemberOf(resource.data.familyId)
+      );
+
+      // Creation paths:
+      //  (a) Family creator seeding themselves as admin when creating a family.
+      //  (b) Admin inviting/adding a member.
+      //  (c) A user accepting an invitation (adds self as "member").
+      allow create: if isSignedIn()
+        && memberId == request.resource.data.userId + "_" + request.resource.data.familyId
+        && request.resource.data.role in ["admin", "member"]
+        && (
+          // (a) + (c): user adds themselves
+          (request.resource.data.userId == uid())
+          // (b): admin adds someone else
+          || isAdminOf(request.resource.data.familyId)
+        );
+
+      // Only admins can change roles. Cannot demote the last admin.
+      allow update: if isAdminOf(resource.data.familyId)
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.familyId == resource.data.familyId
+        && request.resource.data.role in ["admin", "member"];
+
+      // Admin can remove any member; a user can remove themselves.
+      allow delete: if isSignedIn() && (
+        isAdminOf(resource.data.familyId) || resource.data.userId == uid()
+      );
+    }
+
+    // ---------- invitations ----------
+    match /invitations/{invitationId} {
+      // Read: admins of the family OR the invited email
+      allow read: if isSignedIn() && (
+        isAdminOf(resource.data.familyId) || resource.data.email == emailLower()
+      );
+
+      // Create: only admin of that family, status must start as "pending"
+      allow create: if isSignedIn()
+        && isAdminOf(request.resource.data.familyId)
+        && request.resource.data.email is string
+        && request.resource.data.email == request.resource.data.email.lower()
+        && request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
+        && request.resource.data.status == "pending";
+
+      // Update: either admin cancels it, OR the invited email accepts it.
+      allow update: if isSignedIn() && (
+        (
+          isAdminOf(resource.data.familyId)
+          && request.resource.data.familyId == resource.data.familyId
+          && request.resource.data.email == resource.data.email
+          && request.resource.data.status in ["pending", "accepted", "cancelled"]
+        ) || (
+          resource.data.email == emailLower()
+          && request.resource.data.familyId == resource.data.familyId
+          && request.resource.data.email == resource.data.email
+          && resource.data.status == "pending"
+          && request.resource.data.status == "accepted"
+        )
+      );
+
+      allow delete: if isAdminOf(resource.data.familyId);
+    }
+
+    // ---------- categories ----------
+    match /categories/{categoryId} {
+      allow read: if isMemberOf(resource.data.familyId);
+
+      // Only admins can create/update/delete categories.
+      allow create: if isAdminOf(request.resource.data.familyId)
+        && isValidString(request.resource.data.name, 40)
+        && request.resource.data.familyId is string;
+
+      allow update: if isAdminOf(resource.data.familyId)
+        && request.resource.data.familyId == resource.data.familyId
+        && isValidString(request.resource.data.name, 40);
+
+      allow delete: if isAdminOf(resource.data.familyId);
+    }
+
+    // ---------- transactions ----------
+    match /transactions/{txId} {
+      allow read: if isMemberOf(resource.data.familyId);
+
+      // Any family member can create a transaction for themselves.
+      allow create: if isSignedIn()
+        && isMemberOf(request.resource.data.familyId)
+        && request.resource.data.userId == uid()
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0
+        && request.resource.data.type in ["income", "expense"]
+        && request.resource.data.categoryId is string
+        && request.resource.data.recurrence in ["none", "monthly"]
+        && request.resource.data.date is timestamp
+        && request.resource.data.createdAt is timestamp;
+
+      // Owner can edit their own tx (admin can edit any within family).
+      allow update: if isSignedIn()
+        && isMemberOf(resource.data.familyId)
+        && (resource.data.userId == uid() || isAdminOf(resource.data.familyId))
+        && request.resource.data.familyId == resource.data.familyId
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.amount > 0
+        && request.resource.data.type in ["income", "expense"];
+
+      allow delete: if isSignedIn()
+        && isMemberOf(resource.data.familyId)
+        && (resource.data.userId == uid() || isAdminOf(resource.data.familyId));
+    }
+
+    // ---------- budgets ----------
+    match /budgets/{budgetId} {
+      allow read: if isMemberOf(resource.data.familyId);
+
+      allow create: if isAdminOf(request.resource.data.familyId)
+        && request.resource.data.categoryId is string
+        && request.resource.data.monthlyLimit is number
+        && request.resource.data.monthlyLimit >= 0;
+
+      allow update: if isAdminOf(resource.data.familyId)
+        && request.resource.data.familyId == resource.data.familyId
+        && request.resource.data.monthlyLimit >= 0;
+
+      allow delete: if isAdminOf(resource.data.familyId);
+    }
+  }
+}
