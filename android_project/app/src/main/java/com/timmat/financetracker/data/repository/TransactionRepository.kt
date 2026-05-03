@@ -47,6 +47,20 @@ class TransactionRepository @Inject constructor(
         awaitClose { reg.remove() }
     }
 
+    /** Observes transactions from the first day of (N months ago) up to now. */
+    fun observeLastMonths(familyId: String, months: Int): Flow<List<Transaction>> = callbackFlow {
+        val start = nMonthsAgoStart(months)
+        val reg = col
+            .whereEqualTo("familyId", familyId)
+            .whereGreaterThanOrEqualTo("date", Timestamp(start))
+            .orderBy("date", Query.Direction.ASCENDING)
+            .addSnapshotListener { snap, err ->
+                if (err != null || snap == null) trySend(emptyList())
+                else trySend(snap.toObjects(Transaction::class.java))
+            }
+        awaitClose { reg.remove() }
+    }
+
     suspend fun add(
         familyId: String,
         userId: String,
@@ -76,6 +90,27 @@ class TransactionRepository @Inject constructor(
         col.document(txId).delete().await()
     }
 
+    /**
+     * Deletes all `recurrence == "none"` transactions for [familyId] whose `date`
+     * is strictly before the first day of the current month. Batched, max 400 per call.
+     * Returns the number deleted.
+     */
+    suspend fun cleanupOneOffsBeforeCurrentMonth(familyId: String): Int {
+        val (start, _) = currentMonthRange()
+        val snap = col
+            .whereEqualTo("familyId", familyId)
+            .whereEqualTo("recurrence", Recurrence.none.name)
+            .whereLessThan("date", Timestamp(start))
+            .limit(400)
+            .get().await()
+
+        if (snap.isEmpty) return 0
+        val batch = firestore.batch()
+        snap.documents.forEach { batch.delete(it.reference) }
+        batch.commit().await()
+        return snap.size()
+    }
+
     private fun currentMonthRange(): Pair<Date, Date> {
         val cal = Calendar.getInstance().apply {
             set(Calendar.DAY_OF_MONTH, 1)
@@ -87,4 +122,11 @@ class TransactionRepository @Inject constructor(
         val end = cal.time
         return start to end
     }
+
+    private fun nMonthsAgoStart(months: Int): Date = Calendar.getInstance().apply {
+        set(Calendar.DAY_OF_MONTH, 1)
+        set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        add(Calendar.MONTH, -(months - 1))
+    }.time
 }

@@ -11,7 +11,6 @@ import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.timmat.financetracker.R
-import com.timmat.financetracker.data.model.User
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -69,11 +68,18 @@ class AuthRepository @Inject constructor(
         val user = authResult.user
             ?: throw IllegalStateException("Firebase returned null user after sign-in")
 
+        val fullName = user.displayName ?: ""
+        val parts = fullName.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+        val firstName = parts.firstOrNull().orEmpty()
+        val lastName = if (parts.size > 1) parts.drop(1).joinToString(" ") else ""
+
         // Upsert user profile. Rules only allow the owner to write their own doc.
-        val profile = User(
-            uid = user.uid,
-            email = (user.email ?: "").lowercase(),
-            displayName = user.displayName ?: "",
+        val profile = mapOf(
+            "uid" to user.uid,
+            "email" to (user.email ?: "").lowercase(),
+            "displayName" to fullName,
+            "firstName" to firstName,
+            "lastName" to lastName,
         )
         firestore.collection("users").document(user.uid)
             .set(profile, SetOptions.merge()).await()

@@ -23,22 +23,12 @@ class FamilyRepository @Inject constructor(
 
     /**
      * Creates a new family and registers the creator as admin.
-     *
-     * IMPORTANT: We perform TWO sequential commits instead of one big batch:
-     *   1. Family doc + admin member doc (the member doc makes the user an admin).
-     *   2. Default categories seeded under that family.
-     *
-     * Why: Firestore evaluates security rules for each write in a batch against
-     * the PRE-batch database state. If we seeded categories in the same batch,
-     * the `isAdminOf()` rule check would fail because the admin member doc
-     * wouldn't exist yet from the rule engine's perspective → "you are not an
-     * admin of this family" error. Committing member first fixes that.
+     * Two sequential commits so rules see the admin member before category seeding.
      */
     suspend fun createFamily(name: String, creatorUid: String): String {
         val familyRef = families.document()
         val memberRef = members.document(FamilyMember.docId(creatorUid, familyRef.id))
 
-        // Step 1: family + admin member (atomic).
         firestore.batch().apply {
             set(
                 familyRef,
@@ -58,7 +48,6 @@ class FamilyRepository @Inject constructor(
             )
         }.commit().await()
 
-        // Step 2: seed default categories — now admin rule check succeeds.
         firestore.batch().apply {
             DefaultCategories.NAMES.forEach { catName ->
                 val ref = categories.document()
@@ -72,7 +61,6 @@ class FamilyRepository @Inject constructor(
     suspend fun getFamily(familyId: String): Family? =
         families.document(familyId).get().await().toObject(Family::class.java)
 
-    /** Live list of families the user belongs to (via the `familyMembers` index). */
     fun observeFamiliesForUser(userId: String): Flow<List<Family>> = callbackFlow {
         val reg = members.whereEqualTo("userId", userId)
             .addSnapshotListener { snap, err ->
@@ -81,8 +69,6 @@ class FamilyRepository @Inject constructor(
                 }
                 val familyIds = snap.documents.mapNotNull { it.getString("familyId") }
                 if (familyIds.isEmpty()) { trySend(emptyList()); return@addSnapshotListener }
-
-                // Firestore `in` queries support up to 30 values per query.
                 families.whereIn("__name__", familyIds.take(30)).get()
                     .addOnSuccessListener { result ->
                         trySend(result.toObjects(Family::class.java))
@@ -106,32 +92,34 @@ class FamilyRepository @Inject constructor(
         return doc.toObject(FamilyMember::class.java)?.roleEnum
     }
 
-    /** Admin removes a member from the family. Removes both the member doc and the denorm entry. */
+    /** Admin removes a member from the family. */
     suspend fun removeMember(familyId: String, memberUserId: String) {
         val memberRef = members.document(FamilyMember.docId(memberUserId, familyId))
         val familyRef = families.document(familyId)
-
         firestore.runBatch { batch ->
             batch.delete(memberRef)
             batch.update(familyRef, "memberIds", FieldValue.arrayRemove(memberUserId))
         }.await()
     }
 
-    /** Self-join: called after accepting an invitation. Adds self to family + members collection. */
-    suspend fun addSelfAsMember(familyId: String, userId: String) {
-        val memberRef = members.document(FamilyMember.docId(userId, familyId))
+    /**
+     * Admin approves a pending join request: atomically adds [requesterUid] to
+     * `memberIds` and creates their `familyMembers` doc with role=member.
+     * Caller must be admin of [familyId]; enforced both client- and server-side.
+     */
+    suspend fun addMemberByAdmin(familyId: String, requesterUid: String) {
+        val memberRef = members.document(FamilyMember.docId(requesterUid, familyId))
         val familyRef = families.document(familyId)
-
         firestore.runBatch { batch ->
             batch.set(
                 memberRef,
                 mapOf(
-                    "userId" to userId,
+                    "userId" to requesterUid,
                     "familyId" to familyId,
                     "role" to Role.member.name,
                 )
             )
-            batch.update(familyRef, "memberIds", FieldValue.arrayUnion(userId))
+            batch.update(familyRef, "memberIds", FieldValue.arrayUnion(requesterUid))
         }.await()
     }
 }

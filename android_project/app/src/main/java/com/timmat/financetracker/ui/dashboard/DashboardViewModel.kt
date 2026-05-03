@@ -2,43 +2,42 @@ package com.timmat.financetracker.ui.dashboard
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.timmat.financetracker.data.model.Budget
-import com.timmat.financetracker.data.model.Category
+import com.timmat.financetracker.data.model.AppCurrency
 import com.timmat.financetracker.data.model.Family
 import com.timmat.financetracker.data.model.Role
 import com.timmat.financetracker.data.model.Transaction
 import com.timmat.financetracker.data.model.TxType
 import com.timmat.financetracker.data.repository.AuthRepository
-import com.timmat.financetracker.data.repository.BudgetRepository
-import com.timmat.financetracker.data.repository.CategoryRepository
 import com.timmat.financetracker.data.repository.FamilyRepository
+import com.timmat.financetracker.data.repository.SettingsRepository
 import com.timmat.financetracker.data.repository.TransactionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.Calendar
 import javax.inject.Inject
 
-data class CategorySpend(
-    val category: Category,
-    val spent: Double,
-    val limit: Double?,
-) {
-    val remaining: Double? get() = limit?.let { it - spent }
-    val progress: Float
-        get() = limit?.let { if (it <= 0) 0f else (spent / it).toFloat().coerceIn(0f, 1f) } ?: 0f
-}
+/** One data point on the 6-month history chart. */
+data class MonthBar(
+    val year: Int,
+    val month: Int, // 0-based (Calendar.MONTH)
+    val label: String, // short localised month label
+    val income: Double,
+    val expense: Double,
+) { val remaining: Double get() = income - expense }
 
 data class DashboardUiState(
     val family: Family? = null,
     val isAdmin: Boolean = false,
+    val currencyCode: String = AppCurrency.EUR.code,
+    val currentMonthLabel: String = "",
     val monthlyIncome: Double = 0.0,
     val monthlyExpense: Double = 0.0,
-    val perCategory: List<CategorySpend> = emptyList(),
+    val monthlyRemaining: Double = 0.0,
+    val history: List<MonthBar> = emptyList(),
     val loading: Boolean = true,
     val error: String? = null,
 )
@@ -48,8 +47,7 @@ class DashboardViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val familyRepository: FamilyRepository,
     private val transactionRepository: TransactionRepository,
-    private val categoryRepository: CategoryRepository,
-    private val budgetRepository: BudgetRepository,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(DashboardUiState())
@@ -64,46 +62,80 @@ class DashboardViewModel @Inject constructor(
             val family = familyRepository.getFamily(familyId)
             _state.update { it.copy(family = family, isAdmin = role == Role.admin) }
 
-            combine(
-                transactionRepository.observeCurrentMonth(familyId),
-                categoryRepository.observe(familyId),
-                budgetRepository.observe(familyId),
-            ) { txs, cats, budgets ->
-                compute(txs, cats, budgets)
-            }.collect { result ->
-                _state.update { it.copy(loading = false, error = null,
-                    monthlyIncome = result.first,
-                    monthlyExpense = result.second,
-                    perCategory = result.third) }
+            // Fire-and-forget one-off cleanup (idempotent, gated by SharedPreferences).
+            launch { runCleanupIfNewMonth(familyId) }
+
+            // Current month live totals
+            launch {
+                transactionRepository.observeCurrentMonth(familyId).collect { txs ->
+                    val income = txs.filter { it.typeEnum == TxType.income }.sumOf { it.amount }
+                    val expense = txs.filter { it.typeEnum == TxType.expense }.sumOf { it.amount }
+                    _state.update {
+                        it.copy(
+                            loading = false,
+                            monthlyIncome = income,
+                            monthlyExpense = expense,
+                            monthlyRemaining = income - expense,
+                            currentMonthLabel = currentMonthLabel(),
+                            currencyCode = settingsRepository.currency.code,
+                        )
+                    }
+                }
+            }
+
+            // 6-month history chart
+            launch {
+                transactionRepository.observeLastMonths(familyId, 6).collect { txs ->
+                    _state.update { it.copy(history = buildHistory(txs)) }
+                }
             }
         }
     }
 
-    private fun compute(
-        txs: List<Transaction>,
-        cats: List<Category>,
-        budgets: List<Budget>,
-    ): Triple<Double, Double, List<CategorySpend>> {
-        var income = 0.0
-        var expense = 0.0
-        val spentByCat = HashMap<String, Double>()
+    private fun runCleanupIfNewMonth(familyId: String) {
+        val key = currentMonthKey()
+        if (settingsRepository.lastCleanupMonthKey == key) return
+        viewModelScope.launch {
+            runCatching { transactionRepository.cleanupOneOffsBeforeCurrentMonth(familyId) }
+            settingsRepository.lastCleanupMonthKey = key
+        }
+    }
+
+    private fun buildHistory(txs: List<Transaction>): List<MonthBar> {
+        val buckets = linkedMapOf<String, MonthBar>()
+        val cal = Calendar.getInstance()
+        // Seed the last 6 month buckets so empty months still render.
+        for (i in 5 downTo 0) {
+            cal.time = java.util.Date()
+            cal.set(Calendar.DAY_OF_MONTH, 1)
+            cal.add(Calendar.MONTH, -i)
+            val y = cal.get(Calendar.YEAR); val m = cal.get(Calendar.MONTH)
+            buckets["$y-$m"] = MonthBar(y, m, monthShort(cal), 0.0, 0.0)
+        }
         for (t in txs) {
-            when (t.typeEnum) {
-                TxType.income -> income += t.amount
-                TxType.expense -> {
-                    expense += t.amount
-                    spentByCat.merge(t.categoryId, t.amount, Double::plus)
-                }
+            cal.time = t.date.toDate()
+            val k = "${cal.get(Calendar.YEAR)}-${cal.get(Calendar.MONTH)}"
+            val existing = buckets[k] ?: continue
+            buckets[k] = when (t.typeEnum) {
+                TxType.income -> existing.copy(income = existing.income + t.amount)
+                TxType.expense -> existing.copy(expense = existing.expense + t.amount)
             }
         }
-        val limitByCat = budgets.associateBy({ it.categoryId }, { it.monthlyLimit })
-        val per = cats.map { cat ->
-            CategorySpend(
-                category = cat,
-                spent = spentByCat[cat.id] ?: 0.0,
-                limit = limitByCat[cat.id],
-            )
-        }.sortedByDescending { it.spent }
-        return Triple(income, expense, per)
+        return buckets.values.toList()
+    }
+
+    private fun monthShort(cal: Calendar): String =
+        cal.getDisplayName(Calendar.MONTH, Calendar.SHORT, java.util.Locale.getDefault()).orEmpty()
+
+    private fun currentMonthLabel(): String {
+        val cal = Calendar.getInstance()
+        val month = cal.getDisplayName(Calendar.MONTH, Calendar.LONG, java.util.Locale.getDefault())
+            .orEmpty().replaceFirstChar { it.uppercase() }
+        return "$month ${cal.get(Calendar.YEAR)}"
+    }
+
+    private fun currentMonthKey(): String {
+        val cal = Calendar.getInstance()
+        return "${cal.get(Calendar.YEAR)}-${cal.get(Calendar.MONTH)}"
     }
 }
