@@ -6,10 +6,12 @@ import com.timmat.financetracker.data.model.Category
 import com.timmat.financetracker.data.model.FamilyMember
 import com.timmat.financetracker.data.model.Invitation
 import com.timmat.financetracker.data.model.Role
+import com.timmat.financetracker.data.model.User
 import com.timmat.financetracker.data.repository.AuthRepository
 import com.timmat.financetracker.data.repository.CategoryRepository
 import com.timmat.financetracker.data.repository.FamilyRepository
 import com.timmat.financetracker.data.repository.InvitationRepository
+import com.timmat.financetracker.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,13 +23,23 @@ import javax.inject.Inject
 data class FamilyUiState(
     val isAdmin: Boolean = false,
     val members: List<FamilyMember> = emptyList(),
+    /** Map of userId -> resolved User profile (firstName/lastName/email). Missing users render as email/uid fallback. */
+    val profiles: Map<String, User> = emptyMap(),
     val invitations: List<Invitation> = emptyList(),
     val categories: List<Category> = emptyList(),
     val error: String? = null,
     val info: String? = null,
     /** The most recently created invitation code — shown prominently so the admin can share it. */
     val lastCreatedCode: String? = null,
-)
+) {
+    /** Join requests awaiting admin approval. */
+    val pendingRequests: List<Invitation>
+        get() = invitations.filter { it.status == "requested" }
+
+    /** Codes issued by admin but not yet used. */
+    val pendingInvitations: List<Invitation>
+        get() = invitations.filter { it.status == "pending" }
+}
 
 @HiltViewModel
 class FamilyViewModel @Inject constructor(
@@ -35,6 +47,7 @@ class FamilyViewModel @Inject constructor(
     private val familyRepository: FamilyRepository,
     private val invitationRepository: InvitationRepository,
     private val categoryRepository: CategoryRepository,
+    private val userRepository: UserRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(FamilyUiState())
@@ -49,6 +62,7 @@ class FamilyViewModel @Inject constructor(
             launch {
                 familyRepository.observeMembers(familyId).collect { list ->
                     _state.update { it.copy(members = list) }
+                    resolveProfiles(list.map { it.userId })
                 }
             }
             launch {
@@ -64,10 +78,41 @@ class FamilyViewModel @Inject constructor(
         }
     }
 
+    private fun resolveProfiles(uids: List<String>) {
+        val needed = uids.filter { it !in _state.value.profiles && it.isNotBlank() }
+        if (needed.isEmpty()) return
+        viewModelScope.launch {
+            runCatching { userRepository.getByIds(needed) }
+                .onSuccess { fetched ->
+                    _state.update { it.copy(profiles = it.profiles + fetched) }
+                }
+        }
+    }
+
     fun invite(familyId: String, email: String) {
         viewModelScope.launch {
             runCatching { invitationRepository.invite(familyId, email) }
-                .onSuccess { _state.update { it.copy(info = "Invitation sent") } }
+                .onSuccess { code ->
+                    _state.update {
+                        it.copy(info = "Invitation code generated", lastCreatedCode = code, error = null)
+                    }
+                }
+                .onFailure { err -> _state.update { it.copy(error = err.message) } }
+        }
+    }
+
+    fun approveRequest(invitationId: String) {
+        viewModelScope.launch {
+            runCatching { invitationRepository.approve(invitationId) }
+                .onSuccess { _state.update { it.copy(info = "Approved", error = null) } }
+                .onFailure { err -> _state.update { it.copy(error = err.message) } }
+        }
+    }
+
+    fun rejectRequest(invitationId: String) {
+        viewModelScope.launch {
+            runCatching { invitationRepository.reject(invitationId) }
+                .onSuccess { _state.update { it.copy(info = "Rejected", error = null) } }
                 .onFailure { err -> _state.update { it.copy(error = err.message) } }
         }
     }
@@ -95,10 +140,10 @@ class FamilyViewModel @Inject constructor(
 
     fun cancelInvite(invitationId: String) {
         viewModelScope.launch {
-            runCatching { invitationRepository.cancel(invitationId) }
+            runCatching { invitationRepository.delete(invitationId) }
                 .onFailure { err -> _state.update { it.copy(error = err.message) } }
         }
     }
 
-    fun clearMessages() = _state.update { it.copy(error = null, info = null, lastCreatedCode = null) }
+    fun clearMessages() = _state.update { it.copy(error = null, info = null) }
 }

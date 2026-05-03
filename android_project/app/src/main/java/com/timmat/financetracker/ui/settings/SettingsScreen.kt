@@ -1,7 +1,10 @@
 package com.timmat.financetracker.ui.settings
 
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -29,67 +32,79 @@ fun SettingsScreen(
                 title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                        )
                     }
                 },
             )
         }
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Language
-            Text(stringResource(R.string.settings_language),
-                style = MaterialTheme.typography.titleMedium)
-            Column {
-                AppLanguage.values().forEach { lang ->
-                    ListItem(
-                        headlineContent = { Text(stringResource(lang.displayNameRes)) },
-                        trailingContent = {
-                            RadioButton(
-                                selected = state.language == lang,
-                                onClick = {
-                                    viewModel.setLanguage(lang)
-                                    AppCompatDelegate.setApplicationLocales(
-                                        LocaleListCompat.forLanguageTags(lang.tag)
-                                    )
-                                },
-                            )
-                        },
-                        modifier = Modifier.clickableItem {
+            Text(
+                stringResource(R.string.settings_language),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    AppLanguage.values().forEachIndexed { idx, lang ->
+                        val select = {
                             viewModel.setLanguage(lang)
                             AppCompatDelegate.setApplicationLocales(
                                 LocaleListCompat.forLanguageTags(lang.tag)
                             )
-                        },
-                    )
-                    HorizontalDivider()
+                        }
+                        ListItem(
+                            headlineContent = { Text(stringResource(lang.displayNameRes)) },
+                            trailingContent = {
+                                RadioButton(
+                                    selected = state.language == lang,
+                                    onClick = select,
+                                )
+                            },
+                            modifier = Modifier.clickable { select() },
+                        )
+                        if (idx != AppLanguage.values().lastIndex) HorizontalDivider()
+                    }
                 }
             }
 
             // Currency
-            Text(stringResource(R.string.settings_currency),
-                style = MaterialTheme.typography.titleMedium)
-            Column {
-                AppCurrency.values().forEach { cur ->
-                    ListItem(
-                        headlineContent = { Text(stringResource(cur.displayNameRes)) },
-                        trailingContent = {
-                            RadioButton(
-                                selected = state.currency == cur,
-                                onClick = { viewModel.setCurrency(cur) },
-                            )
-                        },
-                        modifier = Modifier.clickableItem { viewModel.setCurrency(cur) },
-                    )
-                    HorizontalDivider()
+            Text(
+                stringResource(R.string.settings_currency),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    AppCurrency.values().forEachIndexed { idx, cur ->
+                        ListItem(
+                            headlineContent = { Text(stringResource(cur.displayNameRes)) },
+                            trailingContent = {
+                                RadioButton(
+                                    selected = state.currency == cur,
+                                    onClick = { viewModel.setCurrency(cur) },
+                                )
+                            },
+                            modifier = Modifier.clickable { viewModel.setCurrency(cur) },
+                        )
+                        if (idx != AppCurrency.values().lastIndex) HorizontalDivider()
+                    }
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
-            Text(stringResource(R.string.settings_about_heading),
-                style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(R.string.settings_about_heading),
+                style = MaterialTheme.typography.titleMedium,
+            )
             Text(
                 stringResource(R.string.settings_about_body),
                 style = MaterialTheme.typography.bodyMedium,
@@ -98,15 +113,3 @@ fun SettingsScreen(
         }
     }
 }
-
-private fun Modifier.clickableItem(onClick: () -> Unit): Modifier =
-    this.then(androidx.compose.foundation.clickable { onClick() })
-
-// Tiny shim so we don't have to import `foundation.clickable` everywhere.
-private inline fun androidx.compose.foundation.clickable(crossinline onClick: () -> Unit) =
-    androidx.compose.ui.Modifier.composed {
-        androidx.compose.foundation.clickable(
-            interactionSource = androidx.compose.foundation.interaction.MutableInteractionSource(),
-            indication = androidx.compose.material.ripple.rememberRipple(),
-        ) { onClick() }
-    }

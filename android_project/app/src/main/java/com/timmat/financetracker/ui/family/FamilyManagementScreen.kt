@@ -1,41 +1,22 @@
 package com.timmat.financetracker.ui.family
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.timmat.financetracker.R
+import com.timmat.financetracker.data.model.FamilyMember
+import com.timmat.financetracker.data.model.Invitation
+import com.timmat.financetracker.data.model.User
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,18 +30,35 @@ fun FamilyManagementScreen(
 
     var email by remember { mutableStateOf("") }
     var newCategory by remember { mutableStateOf("") }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Surface info/error as snackbars
+    LaunchedEffect(state.info, state.error) {
+        state.info?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearMessages()
+        }
+        state.error?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearMessages()
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Family") },
+                title = { Text(stringResource(R.string.family_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                        )
                     }
                 },
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
@@ -72,7 +70,7 @@ fun FamilyManagementScreen(
                         Card(Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(16.dp)) {
                                 Text(
-                                    "Share this 6-digit code with the invitee:",
+                                    stringResource(R.string.family_share_code_hint),
                                     style = MaterialTheme.typography.bodyMedium,
                                 )
                                 Spacer(Modifier.height(6.dp))
@@ -81,23 +79,20 @@ fun FamilyManagementScreen(
                                     style = MaterialTheme.typography.headlineMedium,
                                     color = MaterialTheme.colorScheme.primary,
                                 )
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    "Tell them to enter it on the \"Join with code\" screen after signing in.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                )
                             }
                         }
                     }
                 }
 
                 item {
-                    Text("Invite a member", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        stringResource(R.string.family_invite_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it },
-                        label = { Text("Email address") },
+                        label = { Text(stringResource(R.string.family_invite_email)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -109,78 +104,97 @@ fun FamilyManagementScreen(
                             email = ""
                         },
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Generate invitation code") }
+                    ) { Text(stringResource(R.string.family_generate_code)) }
                     Spacer(Modifier.height(8.dp))
                     HorizontalDivider()
+                }
+
+                // -------- Pending join requests (admin approval required) --------
+                item {
+                    Text(
+                        stringResource(R.string.family_requests_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                if (state.pendingRequests.isEmpty()) {
+                    item {
+                        Text(
+                            stringResource(R.string.family_no_requests),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        )
+                    }
+                } else {
+                    items(state.pendingRequests, key = { it.id }) { inv ->
+                        JoinRequestCard(
+                            inv = inv,
+                            onApprove = { viewModel.approveRequest(inv.id) },
+                            onReject = { viewModel.rejectRequest(inv.id) },
+                        )
+                    }
+                }
+
+                item {
+                    HorizontalDivider()
+                    Text(
+                        stringResource(R.string.family_invitations_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                if (state.pendingInvitations.isEmpty()) {
+                    item {
+                        Text(
+                            "—",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        )
+                    }
+                } else {
+                    items(state.pendingInvitations, key = { it.id }) { inv ->
+                        IssuedCodeCard(inv = inv, onCancel = { viewModel.cancelInvite(inv.id) })
+                    }
                 }
             } else {
                 item {
                     Text(
-                        "You are a member. Only admins can invite or remove users and manage categories.",
+                        stringResource(R.string.family_member_notice),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
             }
 
-            item { Text("Members", style = MaterialTheme.typography.titleMedium) }
+            // -------- Members --------
+            item {
+                HorizontalDivider()
+                Text(
+                    stringResource(R.string.family_members_title),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
             items(state.members, key = { it.id }) { member ->
-                Card(Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.padding(12.dp).fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Column {
-                            Text(member.userId, style = MaterialTheme.typography.bodyLarge)
-                            Text(member.role, style = MaterialTheme.typography.bodyMedium)
-                        }
-                        if (state.isAdmin) {
-                            TextButton(onClick = { viewModel.removeMember(familyId, member.userId) }) {
-                                Text("Remove")
-                            }
-                        }
-                    }
-                }
+                MemberCard(
+                    member = member,
+                    profile = state.profiles[member.userId],
+                    canRemove = state.isAdmin,
+                    onRemove = { viewModel.removeMember(familyId, member.userId) },
+                )
             }
 
+            // -------- Categories --------
             item {
                 HorizontalDivider()
-                Text("Pending invitations", style = MaterialTheme.typography.titleMedium)
-            }
-            items(state.invitations, key = { it.id }) { inv ->
-                Card(Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.padding(12.dp).fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Text(inv.email, style = MaterialTheme.typography.bodyLarge)
-                            Text(
-                                "Code: ${inv.code}",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                            Text(inv.status, style = MaterialTheme.typography.bodyMedium)
-                        }
-                        if (state.isAdmin && inv.status == "pending") {
-                            TextButton(onClick = { viewModel.cancelInvite(inv.id) }) {
-                                Text("Cancel")
-                            }
-                        }
-                    }
-                }
-            }
-
-            item {
-                HorizontalDivider()
-                Text("Categories", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    stringResource(R.string.family_categories_title),
+                    style = MaterialTheme.typography.titleMedium,
+                )
             }
             if (state.isAdmin) {
                 item {
-                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         OutlinedTextField(
                             value = newCategory,
                             onValueChange = { newCategory = it },
-                            label = { Text("New category") },
+                            label = { Text(stringResource(R.string.family_new_category)) },
                             singleLine = true,
                             modifier = Modifier.weight(1f),
                         )
@@ -191,7 +205,7 @@ fun FamilyManagementScreen(
                                 viewModel.addCategory(familyId, newCategory)
                                 newCategory = ""
                             },
-                        ) { Text("Add") }
+                        ) { Text(stringResource(R.string.action_add)) }
                     }
                 }
             }
@@ -200,22 +214,111 @@ fun FamilyManagementScreen(
                     Row(
                         modifier = Modifier.padding(12.dp).fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(cat.name, style = MaterialTheme.typography.bodyLarge)
                         if (state.isAdmin) {
                             IconButton(onClick = { viewModel.deleteCategory(cat.id) }) {
-                                Icon(Icons.Filled.Delete, contentDescription = "Delete")
+                                Icon(
+                                    Icons.Filled.Delete,
+                                    contentDescription = stringResource(R.string.action_delete),
+                                )
                             }
                         }
                     }
                 }
             }
+        }
+    }
+}
 
-            state.error?.let { err ->
-                item { Text(err, color = MaterialTheme.colorScheme.error) }
+@Composable
+private fun JoinRequestCard(
+    inv: Invitation,
+    onApprove: () -> Unit,
+    onReject: () -> Unit,
+) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp)) {
+            Text(
+                inv.requesterName.ifBlank { inv.requesterEmail.ifBlank { inv.email } },
+                style = MaterialTheme.typography.titleMedium,
+            )
+            if (inv.requesterEmail.isNotBlank()) {
+                Text(
+                    inv.requesterEmail,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                )
             }
-            state.info?.let { msg ->
-                item { Text(msg, color = MaterialTheme.colorScheme.primary) }
+            Text(
+                stringResource(R.string.family_request_code_label, inv.code),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onApprove, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.action_approve))
+                }
+                OutlinedButton(onClick = onReject, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.action_reject))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun IssuedCodeCard(inv: Invitation, onCancel: () -> Unit) {
+    Card(Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                if (inv.email.isNotBlank()) {
+                    Text(inv.email, style = MaterialTheme.typography.bodyLarge)
+                }
+                Text(
+                    inv.code,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            TextButton(onClick = onCancel) { Text(stringResource(R.string.action_cancel)) }
+        }
+    }
+}
+
+@Composable
+private fun MemberCard(
+    member: FamilyMember,
+    profile: User?,
+    canRemove: Boolean,
+    onRemove: () -> Unit,
+) {
+    val displayName = profile?.fullName
+        ?.takeIf { it.isNotBlank() }
+        ?: profile?.email?.takeIf { it.isNotBlank() }
+        ?: stringResource(R.string.family_member_loading)
+    Card(Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(displayName, style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    member.role,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                )
+            }
+            if (canRemove) {
+                TextButton(onClick = onRemove) { Text(stringResource(R.string.action_remove)) }
             }
         }
     }

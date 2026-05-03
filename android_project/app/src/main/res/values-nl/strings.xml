@@ -75,6 +75,7 @@
     <string name="family_categories_title">Categorieën</string>
     <string name="family_new_category">Nieuwe categorie</string>
     <string name="family_request_code_label">Code %1$s</string>
+    <string name="family_member_loading">Laden…</string>
 
     <string name="settings_title">Instellingen</string>
     <string name="settings_language">Taal</string>

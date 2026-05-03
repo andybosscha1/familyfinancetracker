@@ -13,6 +13,7 @@ import com.timmat.financetracker.ui.budgets.BudgetsScreen
 import com.timmat.financetracker.ui.dashboard.DashboardScreen
 import com.timmat.financetracker.ui.family.FamilyManagementScreen
 import com.timmat.financetracker.ui.onboarding.OnboardingScreen
+import com.timmat.financetracker.ui.settings.SettingsScreen
 import com.timmat.financetracker.ui.transactions.AddTransactionScreen
 import com.timmat.financetracker.ui.transactions.TransactionsScreen
 
@@ -46,6 +47,7 @@ fun AppNavigation() {
                         popUpTo(0)
                     }
                 },
+                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
             )
         }
         composable("${Routes.DASHBOARD}/{familyId}") { entry ->
@@ -56,6 +58,7 @@ fun AppNavigation() {
                 onAddTransaction = { navController.navigate("${Routes.ADD_TRANSACTION}/$familyId") },
                 onOpenBudgets = { navController.navigate("${Routes.BUDGETS}/$familyId") },
                 onOpenFamily = { navController.navigate("${Routes.FAMILY}/$familyId") },
+                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                 onSignOut = {
                     navController.navigate(Routes.LOGIN) { popUpTo(0) }
                 },
@@ -90,6 +93,9 @@ fun AppNavigation() {
                 familyId = familyId,
                 onBack = { navController.popBackStack() },
             )
+        }
+        composable(Routes.SETTINGS) {
+            SettingsScreen(onBack = { navController.popBackStack() })
         }
     }
 }

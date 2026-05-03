@@ -8,4 +8,5 @@ object Routes {
     const val ADD_TRANSACTION = "addTransaction"
     const val BUDGETS = "budgets"
     const val FAMILY = "family"
+    const val SETTINGS = "settings"
 }

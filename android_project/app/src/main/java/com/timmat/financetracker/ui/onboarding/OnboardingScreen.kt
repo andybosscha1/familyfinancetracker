@@ -21,6 +21,7 @@ private enum class OnboardingMode { Create, Join }
 fun OnboardingScreen(
     onFamilyReady: (String) -> Unit,
     onSignOut: () -> Unit,
+    onOpenSettings: () -> Unit,
     viewModel: OnboardingViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -33,6 +34,9 @@ fun OnboardingScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.onboarding_title)) },
                 actions = {
+                    TextButton(onClick = onOpenSettings) {
+                        Text(stringResource(R.string.nav_settings))
+                    }
                     TextButton(onClick = {
                         viewModel.signOut(); onSignOut()
                     }) { Text(stringResource(R.string.action_sign_out)) }
