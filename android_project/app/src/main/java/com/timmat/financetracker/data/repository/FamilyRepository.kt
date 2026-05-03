@@ -22,35 +22,50 @@ class FamilyRepository @Inject constructor(
     private val categories = firestore.collection("categories")
 
     /**
-     * Creates a new family, seeds default categories, and registers the creator
-     * as admin — all in a single atomic batched write.
+     * Creates a new family and registers the creator as admin.
+     *
+     * IMPORTANT: We perform TWO sequential commits instead of one big batch:
+     *   1. Family doc + admin member doc (the member doc makes the user an admin).
+     *   2. Default categories seeded under that family.
+     *
+     * Why: Firestore evaluates security rules for each write in a batch against
+     * the PRE-batch database state. If we seeded categories in the same batch,
+     * the `isAdminOf()` rule check would fail because the admin member doc
+     * wouldn't exist yet from the rule engine's perspective → "you are not an
+     * admin of this family" error. Committing member first fixes that.
      */
     suspend fun createFamily(name: String, creatorUid: String): String {
         val familyRef = families.document()
         val memberRef = members.document(FamilyMember.docId(creatorUid, familyRef.id))
 
-        val batch = firestore.batch()
-        batch.set(
-            familyRef,
-            mapOf(
-                "name" to name.trim(),
-                "createdBy" to creatorUid,
-                "memberIds" to listOf(creatorUid),
+        // Step 1: family + admin member (atomic).
+        firestore.batch().apply {
+            set(
+                familyRef,
+                mapOf(
+                    "name" to name.trim(),
+                    "createdBy" to creatorUid,
+                    "memberIds" to listOf(creatorUid),
+                )
             )
-        )
-        batch.set(
-            memberRef,
-            mapOf(
-                "userId" to creatorUid,
-                "familyId" to familyRef.id,
-                "role" to Role.admin.name,
+            set(
+                memberRef,
+                mapOf(
+                    "userId" to creatorUid,
+                    "familyId" to familyRef.id,
+                    "role" to Role.admin.name,
+                )
             )
-        )
-        DefaultCategories.NAMES.forEach { catName ->
-            val ref = categories.document()
-            batch.set(ref, mapOf("name" to catName, "familyId" to familyRef.id))
-        }
-        batch.commit().await()
+        }.commit().await()
+
+        // Step 2: seed default categories — now admin rule check succeeds.
+        firestore.batch().apply {
+            DefaultCategories.NAMES.forEach { catName ->
+                val ref = categories.document()
+                set(ref, mapOf("name" to catName, "familyId" to familyRef.id))
+            }
+        }.commit().await()
+
         return familyRef.id
     }
 

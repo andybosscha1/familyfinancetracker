@@ -25,6 +25,8 @@ data class FamilyUiState(
     val categories: List<Category> = emptyList(),
     val error: String? = null,
     val info: String? = null,
+    /** The most recently created invitation code — shown prominently so the admin can share it. */
+    val lastCreatedCode: String? = null,
 )
 
 @HiltViewModel
@@ -98,5 +100,5 @@ class FamilyViewModel @Inject constructor(
         }
     }
 
-    fun clearMessages() = _state.update { it.copy(error = null, info = null) }
+    fun clearMessages() = _state.update { it.copy(error = null, info = null, lastCreatedCode = null) }
 }

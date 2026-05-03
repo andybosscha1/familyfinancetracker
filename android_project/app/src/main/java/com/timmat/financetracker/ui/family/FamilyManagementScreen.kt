@@ -66,16 +66,32 @@ fun FamilyManagementScreen(
             modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            if (!state.isAdmin) {
-                item {
-                    Text(
-                        "You are a member. Only admins can invite or remove users and manage categories.",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
-            }
-
             if (state.isAdmin) {
+                state.lastCreatedCode?.let { code ->
+                    item {
+                        Card(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(16.dp)) {
+                                Text(
+                                    "Share this 6-digit code with the invitee:",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Spacer(Modifier.height(6.dp))
+                                Text(
+                                    code,
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    "Tell them to enter it on the \"Join with code\" screen after signing in.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                )
+                            }
+                        }
+                    }
+                }
+
                 item {
                     Text("Invite a member", style = MaterialTheme.typography.titleMedium)
                     OutlinedTextField(
@@ -93,9 +109,16 @@ fun FamilyManagementScreen(
                             email = ""
                         },
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Send invitation") }
+                    ) { Text("Generate invitation code") }
                     Spacer(Modifier.height(8.dp))
                     HorizontalDivider()
+                }
+            } else {
+                item {
+                    Text(
+                        "You are a member. Only admins can invite or remove users and manage categories.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
             }
 
@@ -129,8 +152,13 @@ fun FamilyManagementScreen(
                         modifier = Modifier.padding(12.dp).fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Column {
+                        Column(Modifier.weight(1f)) {
                             Text(inv.email, style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                "Code: ${inv.code}",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
                             Text(inv.status, style = MaterialTheme.typography.bodyMedium)
                         }
                         if (state.isAdmin && inv.status == "pending") {

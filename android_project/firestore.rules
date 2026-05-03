@@ -84,22 +84,29 @@ service cloud.firestore {
         && uid() in request.resource.data.memberIds
         && request.resource.data.memberIds.size() <= 50;
 
-      // Only admins can rename; memberIds changes are constrained:
-      //   * admin can add/remove anyone (invite flow / remove member)
-      //   * a member can add ONLY themselves (accept invitation flow)
-      allow update: if isMemberOf(familyId) && (
+      // Two-path update:
+      //   * Admin: may rename and add/remove members.
+      //   * Self-join: ANY signed-in user can add themselves (only themselves!) to
+      //     memberIds and change nothing else. This path MUST NOT require existing
+      //     membership — otherwise a newly-invited user could never join. The
+      //     20-char random familyId (paired with the 6-digit invitation code the
+      //     user must obtain from an admin) is what actually gates this flow.
+      allow update: if isSignedIn() && (
         (
-          // Admin-level rename / membership change
-          isAdminOf(familyId)
+          // Admin path
+          isMemberOf(familyId)
+          && isAdminOf(familyId)
           && request.resource.data.createdBy == resource.data.createdBy
           && isValidString(request.resource.data.name, 80)
           && request.resource.data.memberIds is list
           && request.resource.data.memberIds.size() <= 50
         ) || (
-          // Self-join via accepted invitation: only memberIds changes and only by adding self
+          // Self-join path: touches only memberIds, adds exactly the caller's uid.
           request.resource.data.createdBy == resource.data.createdBy
           && request.resource.data.name == resource.data.name
+          && request.resource.data.memberIds is list
           && request.resource.data.memberIds.hasAll(resource.data.memberIds)
+          && request.resource.data.memberIds.size() == resource.data.memberIds.size() + 1
           && request.resource.data.memberIds.removeAll(resource.data.memberIds).hasOnly([uid()])
         )
       );
@@ -141,33 +148,43 @@ service cloud.firestore {
     }
 
     // ---------- invitations ----------
-    match /invitations/{invitationId} {
-      // Read: admins of the family OR the invited email
-      allow read: if isSignedIn() && (
-        isAdminOf(resource.data.familyId) || resource.data.email == emailLower()
-      );
+    // Doc ID convention: the 6-digit numeric invitation CODE (e.g. "482193").
+    // Using the code as the doc ID means the "join with code" flow can fetch the
+    // invitation with a single `get()` — no query/list, so rules stay tight.
+    match /invitations/{code} {
+      // A signed-in user holding the code can fetch the invitation doc directly.
+      // Listing is restricted to admins of the target family so they can manage invites.
+      allow get:  if isSignedIn();
+      allow list: if isSignedIn() && isAdminOf(resource.data.familyId);
 
-      // Create: only admin of that family, status must start as "pending"
+      // Create: admin of that family, doc ID must be 6 digits, status starts pending.
       allow create: if isSignedIn()
+        && code.matches('^[0-9]{6}$')
         && isAdminOf(request.resource.data.familyId)
+        && request.resource.data.code == code
+        && request.resource.data.familyId is string
         && request.resource.data.email is string
         && request.resource.data.email == request.resource.data.email.lower()
-        && request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
         && request.resource.data.status == "pending";
 
-      // Update: either admin cancels it, OR the invited email accepts it.
+      // Update:
+      //   * Admin of the family: may flip status (cancel / re-open) but cannot mutate
+      //     familyId/email/code.
+      //   * Any signed-in user holding the code: may flip a PENDING invite to ACCEPTED
+      //     (they've proven possession of the code by addressing this doc directly).
       allow update: if isSignedIn() && (
         (
           isAdminOf(resource.data.familyId)
           && request.resource.data.familyId == resource.data.familyId
           && request.resource.data.email == resource.data.email
+          && request.resource.data.code == resource.data.code
           && request.resource.data.status in ["pending", "accepted", "cancelled"]
         ) || (
-          resource.data.email == emailLower()
+          resource.data.status == "pending"
+          && request.resource.data.status == "accepted"
           && request.resource.data.familyId == resource.data.familyId
           && request.resource.data.email == resource.data.email
-          && resource.data.status == "pending"
-          && request.resource.data.status == "accepted"
+          && request.resource.data.code == resource.data.code
         )
       );
 

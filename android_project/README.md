@@ -120,19 +120,29 @@ After building & installing:
 
 1. **Launch app** → Login screen appears.
 2. **Tap "Continue with Google"** → Credential Manager sheet shows your Google accounts. Pick one.
-3. App navigates to **Onboarding**:
-   - If your email has a pending invitation → you auto-join that family.
-   - Otherwise → "Create new family" prompts you for a family name, creates it, and seeds 8 default categories. You become `admin`.
-4. **Dashboard** shows current month's income total, expense total, and budget usage.
+3. App navigates to **Onboarding**. Because you have no families yet, you see two options:
+   * **Create family** (default) → enter a name → you become the `admin` of a new family with 8 seeded default categories.
+   * **Join with code** → paste the 6-digit code you received by email (sent by an admin of the family that invited you).
+4. **Dashboard** shows current month's income total, expense total, and per-category budget usage. An admin sees the "Family" entry in the top bar.
 5. **Add a transaction** → it appears in the list and updates totals.
-6. **Family management (admin only)** → invite a user by email → set that email's account to accept the invitation.
+6. **Invite flow (admin):**
+   * Open **Family** → type an email → **Generate invitation code**.
+   * The app creates an invitation doc whose ID *is* the 6-digit code, and displays it prominently.
+   * Email/share that code with the invitee (out of band — the app doesn't send email itself).
+   * The invitee signs in on another device → Onboarding → **Join with code** → pastes the code → joins as a `member`.
 
 ### Verifying Firestore rules work
-- Try `firebase emulators:start --only firestore` and run the test in `firestore.rules` comments.
-- Or from the Firebase Console → Firestore → **Rules Playground**, simulate:
+- From Firebase Console → Firestore → **Rules Playground**, simulate:
   - `get /families/{familyId}` with a user NOT in `memberIds` → **denied**
   - `create /categories/{id}` with role `member` → **denied**
   - `create /categories/{id}` with role `admin` → **allowed**
+  - `create /invitations/12ab34` (non-numeric ID) → **denied** (code regex fails)
+  - `update /invitations/{pendingCode}` flipping status to `accepted` as any signed-in user → **allowed** (possession of the code is the authorisation)
+  - `update /families/{familyId}` as non-admin, adding only your own uid to memberIds → **allowed** (self-join path)
+  - `update /families/{familyId}` as non-admin, adding another user's uid → **denied**
+
+### Why `createFamily()` uses two commits
+Firestore evaluates rules for each write in a batch against the **pre-batch** database state. If we tried to write family + admin-member + categories in one batch, the category writes would be rejected because `isAdminOf()` can't see the not-yet-written member doc. Committing the member doc first makes subsequent admin-only writes pass. See `FamilyRepository.createFamily()` for the implementation.
 
 ---
 
