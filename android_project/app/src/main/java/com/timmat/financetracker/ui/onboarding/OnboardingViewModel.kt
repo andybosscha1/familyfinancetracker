@@ -2,6 +2,8 @@ package com.timmat.financetracker.ui.onboarding
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.timmat.financetracker.R
+import com.timmat.financetracker.common.UiMessage
 import com.timmat.financetracker.data.model.AppLockMode
 import com.timmat.financetracker.data.model.Family
 import com.timmat.financetracker.data.repository.AuthRepository
@@ -19,8 +21,8 @@ import javax.inject.Inject
 data class OnboardingUiState(
     val checking: Boolean = true,
     val families: List<Family> = emptyList(),
-    val error: String? = null,
-    val info: String? = null,
+    val error: UiMessage? = null,
+    val info: UiMessage? = null,
     val busy: Boolean = false,
     val requestSubmitted: Boolean = false,
     val shouldPromptAppLock: Boolean = false,
@@ -40,7 +42,7 @@ class OnboardingViewModel @Inject constructor(
     init {
         val user = authRepository.currentUser
         if (user == null) {
-            _state.update { it.copy(checking = false, error = "Not signed in") }
+            _state.update { it.copy(checking = false, error = UiMessage.Res(R.string.msg_not_signed_in)) }
         } else {
             val promptNeeded = settingsRepository.appLock == AppLockMode.None &&
                 !settingsRepository.appLockPromptShown
@@ -61,12 +63,15 @@ class OnboardingViewModel @Inject constructor(
     fun createFamily(name: String, onCreated: (String) -> Unit) {
         val user = authRepository.currentUser ?: return
         val trimmed = name.trim()
-        if (trimmed.isEmpty()) { _state.update { it.copy(error = "Family name required") }; return }
+        if (trimmed.isEmpty()) {
+            _state.update { it.copy(error = UiMessage.Res(R.string.msg_family_name_required)) }
+            return
+        }
         viewModelScope.launch {
             _state.update { it.copy(busy = true, error = null, info = null) }
             runCatching { familyRepository.createFamily(trimmed, user.uid) }
                 .onSuccess { id -> _state.update { it.copy(busy = false) }; onCreated(id) }
-                .onFailure { e -> _state.update { it.copy(busy = false, error = e.message) } }
+                .onFailure { e -> _state.update { it.copy(busy = false, error = UiMessage.Raw(e.message ?: "")) } }
         }
     }
 
@@ -74,7 +79,8 @@ class OnboardingViewModel @Inject constructor(
         val user = authRepository.currentUser ?: return
         val trimmed = code.trim()
         if (trimmed.length != 6 || trimmed.any { !it.isDigit() }) {
-            _state.update { it.copy(error = "Enter the 6-digit code") }; return
+            _state.update { it.copy(error = UiMessage.Res(R.string.msg_enter_6_digit_code)) }
+            return
         }
         viewModelScope.launch {
             _state.update { it.copy(busy = true, error = null, info = null) }
@@ -86,9 +92,9 @@ class OnboardingViewModel @Inject constructor(
                     userEmail = user.email.orEmpty(),
                 )
             }.onSuccess {
-                _state.update { it.copy(busy = false, requestSubmitted = true, info = "Request submitted.") }
+                _state.update { it.copy(busy = false, requestSubmitted = true, info = UiMessage.Res(R.string.msg_request_submitted)) }
             }.onFailure { e ->
-                _state.update { it.copy(busy = false, error = e.message) }
+                _state.update { it.copy(busy = false, error = UiMessage.Raw(e.message ?: "")) }
             }
         }
     }

@@ -29,8 +29,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.timmat.financetracker.R
 import com.timmat.financetracker.data.model.TxType
 import com.timmat.financetracker.ui.theme.Expense
 import com.timmat.financetracker.ui.theme.Income
@@ -54,10 +56,10 @@ fun TransactionsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Transactions") },
+                title = { Text(stringResource(R.string.tx_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 },
             )
@@ -66,7 +68,7 @@ fun TransactionsScreen(
             ExtendedFloatingActionButton(
                 onClick = onAdd,
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text("Add") },
+                text = { Text(stringResource(R.string.action_add)) },
             )
         }
     ) { padding ->

@@ -168,4 +168,18 @@
     <string name="family_make_admin">Make admin</string>
     <string name="family_revoke_admin">Revoke admin</string>
     <string name="family_role_creator">creator</string>
+
+    <!-- Runtime-emitted messages (shown via Snackbars / inline text) -->
+    <string name="msg_saved">Saved</string>
+    <string name="msg_approved">Approved</string>
+    <string name="msg_rejected">Rejected</string>
+    <string name="msg_invite_generated">Invitation code generated</string>
+    <string name="msg_not_signed_in">Not signed in</string>
+    <string name="msg_family_name_required">Family name is required</string>
+    <string name="msg_enter_6_digit_code">Enter the 6-digit code</string>
+    <string name="msg_request_submitted">Request submitted.</string>
+
+    <!-- App lock runtime errors -->
+    <string name="app_lock_incorrect_pin">Incorrect PIN</string>
+    <string name="app_lock_locked_out">Too many attempts. Try again in %1$d seconds.</string>
 </resources>

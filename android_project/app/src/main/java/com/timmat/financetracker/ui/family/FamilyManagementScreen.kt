@@ -12,11 +12,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.timmat.financetracker.R
+import com.timmat.financetracker.common.resolve
 import com.timmat.financetracker.data.model.FamilyMember
 import com.timmat.financetracker.data.model.Invitation
 import com.timmat.financetracker.data.model.Role
@@ -37,11 +39,11 @@ fun FamilyManagementScreen(
     var newCategory by remember { mutableStateOf("") }
     var showDeleteDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
-    val currentUid = remember { "" } // not needed for UI logic (we use state.isCreator / isAdmin)
+    val ctx = LocalContext.current
 
     LaunchedEffect(state.info, state.error) {
-        state.info?.let { snackbarHostState.showSnackbar(it); viewModel.clearMessages() }
-        state.error?.let { snackbarHostState.showSnackbar(it); viewModel.clearMessages() }
+        state.info?.let { snackbarHostState.showSnackbar(it.resolve(ctx)); viewModel.clearMessages() }
+        state.error?.let { snackbarHostState.showSnackbar(it.resolve(ctx)); viewModel.clearMessages() }
     }
     LaunchedEffect(state.deleted) { if (state.deleted) onFamilyDeleted() }
 

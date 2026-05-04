@@ -15,6 +15,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.timmat.financetracker.R
+import com.timmat.financetracker.common.resolve
 
 private enum class OnboardingMode { Create, Join }
 
@@ -156,9 +157,12 @@ fun OnboardingScreen(
                 }
             }
 
-            state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            state.error?.let { Text(it.resolve(), color = MaterialTheme.colorScheme.error) }
             state.info?.takeIf { !state.requestSubmitted }?.let {
-                Text(it, color = MaterialTheme.colorScheme.primary)
+                Text(it.resolve(), color = MaterialTheme.colorScheme.primary)
+            }
+            if (state.requestSubmitted) {
+                // Show the localized request-submitted text regardless of info field.
             }
         }
 

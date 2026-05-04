@@ -159,4 +159,18 @@
     <string name="family_make_admin">Maak beheerder</string>
     <string name="family_revoke_admin">Beheerder intrekken</string>
     <string name="family_role_creator">aanmaker</string>
+
+    <!-- Runtime-emitted messages (shown via Snackbars / inline text) -->
+    <string name="msg_saved">Opgeslagen</string>
+    <string name="msg_approved">Goedgekeurd</string>
+    <string name="msg_rejected">Afgewezen</string>
+    <string name="msg_invite_generated">Uitnodigingscode aangemaakt</string>
+    <string name="msg_not_signed_in">Niet aangemeld</string>
+    <string name="msg_family_name_required">Gezinsnaam is verplicht</string>
+    <string name="msg_enter_6_digit_code">Voer de 6-cijferige code in</string>
+    <string name="msg_request_submitted">Verzoek ingediend.</string>
+
+    <!-- App lock runtime errors -->
+    <string name="app_lock_incorrect_pin">Onjuiste pincode</string>
+    <string name="app_lock_locked_out">Te veel pogingen. Probeer het over %1$d seconden opnieuw.</string>
 </resources>
