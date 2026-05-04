@@ -127,7 +127,7 @@
     <string name="app_lock_pin">Pincode</string>
     <string name="app_lock_pin_biometric">Pincode + Biometrie</string>
     <string name="app_lock_setup_title">App-vergrendeling</string>
-    <string name="app_lock_setup_body">Kies een 4–6-cijferige pincode. Je kunt ook biometrische ontgrendeling inschakelen als je apparaat dit ondersteunt.</string>
+    <string name="app_lock_setup_body">Kies een 4-cijferige pincode. Je kunt ook biometrische ontgrendeling inschakelen als je apparaat dit ondersteunt.</string>
     <string name="app_lock_prompt_title">Bescherm je gezinsfinanciën</string>
     <string name="app_lock_prompt_body">Stel nu een app-vergrendeling in zodat alleen jij de app op dit apparaat kunt openen. Je kunt dit later altijd inschakelen via Instellingen.</string>
     <string name="app_lock_prompt_enable">App-vergrendeling instellen</string>

@@ -136,7 +136,7 @@
     <string name="app_lock_pin">PIN</string>
     <string name="app_lock_pin_biometric">PIN + Biometric</string>
     <string name="app_lock_setup_title">App lock</string>
-    <string name="app_lock_setup_body">Pick a 4–6 digit PIN. You can also enable biometric unlock if your device supports it.</string>
+    <string name="app_lock_setup_body">Pick a 4-digit PIN. You can also enable biometric unlock if your device supports it.</string>
     <string name="app_lock_prompt_title">Protect your family finances</string>
     <string name="app_lock_prompt_body">Set up an app lock now so only you can open the app on this device. You can always turn it on later from Settings.</string>
     <string name="app_lock_prompt_enable">Set up app lock</string>

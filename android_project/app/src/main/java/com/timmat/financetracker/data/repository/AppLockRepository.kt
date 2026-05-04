@@ -48,7 +48,7 @@ class AppLockRepository @Inject constructor(
     fun savedPinLength(): Int = prefs.getInt(KEY_PIN_LENGTH, 0)
 
     fun setPin(pin: String) {
-        require(pin.length in 4..6 && pin.all { it.isDigit() }) { "PIN must be 4–6 digits" }
+        require(pin.length == PIN_LENGTH && pin.all { it.isDigit() }) { "PIN must be exactly $PIN_LENGTH digits" }
         val salt = ByteArray(16).also { SecureRandom().nextBytes(it) }
         val hash = hash(pin, salt)
         prefs.edit()
@@ -141,5 +141,6 @@ class AppLockRepository @Inject constructor(
         const val PBKDF2_ITER = 120_000
         const val MAX_ATTEMPTS = 5
         const val LOCKOUT_MS = 30_000L // 30s, doubles each block of MAX_ATTEMPTS fails
+        const val PIN_LENGTH = 4
     }
 }

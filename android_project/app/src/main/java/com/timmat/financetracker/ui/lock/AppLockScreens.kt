@@ -30,6 +30,9 @@ import com.timmat.financetracker.common.UiMessage
 import com.timmat.financetracker.common.resolve
 import com.timmat.financetracker.data.model.AppLockMode
 
+/** Single source of truth for the required PIN length \u2014 4 digits everywhere. */
+const val PIN_LENGTH = 4
+
 // ============================================================================
 //  SETUP SCREEN (choose PIN + optional biometric)
 // ============================================================================
@@ -51,7 +54,7 @@ fun AppLockSetupScreen(
     var confirmPin by remember { mutableStateOf("") }
     var useBiometric by remember { mutableStateOf(false) }
 
-    val pinValid = pin.length in 4..6 && pin.all { it.isDigit() }
+    val pinValid = pin.length == PIN_LENGTH && pin.all { it.isDigit() }
     val match = pin == confirmPin && pinValid
 
     Scaffold(
@@ -87,7 +90,7 @@ fun AppLockSetupScreen(
             )
             OutlinedTextField(
                 value = pin,
-                onValueChange = { new -> pin = new.filter { it.isDigit() }.take(6) },
+                onValueChange = { new -> pin = new.filter { it.isDigit() }.take(PIN_LENGTH) },
                 label = { Text(stringResource(R.string.app_lock_pin_label)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                 visualTransformation = PasswordVisualTransformation(),
@@ -96,7 +99,7 @@ fun AppLockSetupScreen(
             )
             OutlinedTextField(
                 value = confirmPin,
-                onValueChange = { new -> confirmPin = new.filter { it.isDigit() }.take(6) },
+                onValueChange = { new -> confirmPin = new.filter { it.isDigit() }.take(PIN_LENGTH) },
                 label = { Text(stringResource(R.string.app_lock_pin_confirm_label)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                 visualTransformation = PasswordVisualTransformation(),
@@ -149,9 +152,9 @@ fun AppLockScreen(viewModel: AppLockViewModel = hiltViewModel()) {
 
     var entered by remember { mutableStateOf("") }
 
-    // Auto-verify when entered PIN reaches the expected length.
+    // Auto-verify when entered PIN reaches the fixed length (4 digits).
     LaunchedEffect(entered) {
-        if (entered.length == state.pinLength && state.pinLength >= 4) {
+        if (entered.length == PIN_LENGTH) {
             val ok = viewModel.verifyPin(entered)
             if (!ok) entered = ""
         }
@@ -201,7 +204,7 @@ fun AppLockScreen(viewModel: AppLockViewModel = hiltViewModel()) {
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             )
 
-            PinDots(length = state.pinLength, entered = entered.length)
+            PinDots(length = PIN_LENGTH, entered = entered.length)
 
             val errorText = state.error?.resolve()
             if (!errorText.isNullOrBlank()) {
@@ -216,7 +219,7 @@ fun AppLockScreen(viewModel: AppLockViewModel = hiltViewModel()) {
                 enabled = state.lockoutSecondsLeft == 0,
                 showBiometric = state.mode == AppLockMode.PinAndBiometric && state.biometricAvailable,
                 onDigit = { d ->
-                    if (entered.length < state.pinLength) entered += d
+                    if (entered.length < PIN_LENGTH) entered += d
                 },
                 onBackspace = { if (entered.isNotEmpty()) entered = entered.dropLast(1) },
                 onBiometric = {
