@@ -24,6 +24,8 @@ data class TransactionsUiState(
     val loading: Boolean = true,
     val error: String? = null,
     val submitting: Boolean = false,
+    /** Populated in edit mode via [TransactionsViewModel.loadForEdit]. */
+    val editing: Transaction? = null,
 )
 
 @HiltViewModel
@@ -51,6 +53,14 @@ class TransactionsViewModel @Inject constructor(
         }
     }
 
+    fun loadForEdit(txId: String) {
+        viewModelScope.launch {
+            runCatching { transactionRepository.getById(txId) }
+                .onSuccess { tx -> _state.update { it.copy(editing = tx) } }
+                .onFailure { e -> _state.update { it.copy(error = e.message) } }
+        }
+    }
+
     fun add(
         familyId: String,
         amount: Double,
@@ -64,15 +74,29 @@ class TransactionsViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(submitting = true, error = null) }
             runCatching {
-                transactionRepository.add(
-                    familyId = familyId,
-                    userId = user.uid,
-                    amount = amount,
-                    type = type,
-                    categoryId = categoryId,
-                    date = date,
-                    recurrence = recurrence,
-                )
+                transactionRepository.add(familyId, user.uid, amount, type, categoryId, date, recurrence)
+            }.onSuccess {
+                _state.update { it.copy(submitting = false) }
+                onDone()
+            }.onFailure { err ->
+                _state.update { it.copy(submitting = false, error = err.message) }
+            }
+        }
+    }
+
+    fun update(
+        txId: String,
+        amount: Double,
+        type: TxType,
+        categoryId: String,
+        date: Date,
+        recurrence: Recurrence,
+        onDone: () -> Unit,
+    ) {
+        viewModelScope.launch {
+            _state.update { it.copy(submitting = true, error = null) }
+            runCatching {
+                transactionRepository.update(txId, amount, type, categoryId, date, recurrence)
             }.onSuccess {
                 _state.update { it.copy(submitting = false) }
                 onDone()

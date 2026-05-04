@@ -30,3 +30,27 @@ enum class AppCurrency(val code: String, val displayNameRes: Int) {
             values().firstOrNull { it.code == code } ?: EUR
     }
 }
+
+/** UI colour scheme choice. Medium = warm sepia between pure-light and pure-dark. */
+enum class AppTheme(val displayNameRes: Int) {
+    Light(com.timmat.financetracker.R.string.theme_light),
+    Sepia(com.timmat.financetracker.R.string.theme_sepia),
+    Dark(com.timmat.financetracker.R.string.theme_dark);
+
+    companion object {
+        fun fromName(name: String?): AppTheme =
+            values().firstOrNull { it.name == name } ?: Light
+    }
+}
+
+/** App-lock mode on top of Google sign-in. */
+enum class AppLockMode(val displayNameRes: Int) {
+    None(com.timmat.financetracker.R.string.app_lock_none),
+    Pin(com.timmat.financetracker.R.string.app_lock_pin),
+    PinAndBiometric(com.timmat.financetracker.R.string.app_lock_pin_biometric);
+
+    companion object {
+        fun fromName(name: String?): AppLockMode =
+            values().firstOrNull { it.name == name } ?: None
+    }
+}

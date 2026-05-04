@@ -2,10 +2,12 @@ package com.timmat.financetracker.ui.onboarding
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.timmat.financetracker.data.model.AppLockMode
 import com.timmat.financetracker.data.model.Family
 import com.timmat.financetracker.data.repository.AuthRepository
 import com.timmat.financetracker.data.repository.FamilyRepository
 import com.timmat.financetracker.data.repository.InvitationRepository
+import com.timmat.financetracker.data.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,6 +23,7 @@ data class OnboardingUiState(
     val info: String? = null,
     val busy: Boolean = false,
     val requestSubmitted: Boolean = false,
+    val shouldPromptAppLock: Boolean = false,
 )
 
 @HiltViewModel
@@ -28,6 +31,7 @@ class OnboardingViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val familyRepository: FamilyRepository,
     private val invitationRepository: InvitationRepository,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(OnboardingUiState())
@@ -38,12 +42,20 @@ class OnboardingViewModel @Inject constructor(
         if (user == null) {
             _state.update { it.copy(checking = false, error = "Not signed in") }
         } else {
+            val promptNeeded = settingsRepository.appLock == AppLockMode.None &&
+                !settingsRepository.appLockPromptShown
+            _state.update { it.copy(shouldPromptAppLock = promptNeeded) }
             viewModelScope.launch {
                 familyRepository.observeFamiliesForUser(user.uid).collect { list ->
                     _state.update { it.copy(checking = false, families = list) }
                 }
             }
         }
+    }
+
+    fun markAppLockPromptShown() {
+        settingsRepository.appLockPromptShown = true
+        _state.update { it.copy(shouldPromptAppLock = false) }
     }
 
     fun createFamily(name: String, onCreated: (String) -> Unit) {

@@ -19,6 +19,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.timmat.financetracker.R
 import com.timmat.financetracker.data.model.FamilyMember
 import com.timmat.financetracker.data.model.Invitation
+import com.timmat.financetracker.data.model.Role
 import com.timmat.financetracker.data.model.User
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -36,23 +37,13 @@ fun FamilyManagementScreen(
     var newCategory by remember { mutableStateOf("") }
     var showDeleteDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val currentUid = remember { "" } // not needed for UI logic (we use state.isCreator / isAdmin)
 
-    // Surface info/error as snackbars
     LaunchedEffect(state.info, state.error) {
-        state.info?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearMessages()
-        }
-        state.error?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearMessages()
-        }
+        state.info?.let { snackbarHostState.showSnackbar(it); viewModel.clearMessages() }
+        state.error?.let { snackbarHostState.showSnackbar(it); viewModel.clearMessages() }
     }
-
-    // Navigate away once the family has been deleted.
-    LaunchedEffect(state.deleted) {
-        if (state.deleted) onFamilyDeleted()
-    }
+    LaunchedEffect(state.deleted) { if (state.deleted) onFamilyDeleted() }
 
     Scaffold(
         topBar = {
@@ -60,10 +51,7 @@ fun FamilyManagementScreen(
                 title = { Text(stringResource(R.string.family_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.action_back),
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 },
             )
@@ -79,86 +67,96 @@ fun FamilyManagementScreen(
                     item {
                         Card(Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(16.dp)) {
-                                Text(
-                                    stringResource(R.string.family_share_code_hint),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
+                                Text(stringResource(R.string.family_share_code_hint), style = MaterialTheme.typography.bodyMedium)
                                 Spacer(Modifier.height(6.dp))
-                                Text(
-                                    code,
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
+                                Text(code, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
                             }
                         }
                     }
                 }
 
                 item {
-                    Text(
-                        stringResource(R.string.family_invite_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
+                    Text(stringResource(R.string.family_invite_title), style = MaterialTheme.typography.titleMedium)
                     OutlinedTextField(
-                        value = email,
-                        onValueChange = { email = it },
+                        value = email, onValueChange = { email = it },
                         label = { Text(stringResource(R.string.family_invite_email)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true, modifier = Modifier.fillMaxWidth(),
                     )
                     Spacer(Modifier.height(8.dp))
                     Button(
                         enabled = email.contains("@"),
-                        onClick = {
-                            viewModel.invite(familyId, email)
-                            email = ""
-                        },
+                        onClick = { viewModel.invite(familyId, email); email = "" },
                         modifier = Modifier.fillMaxWidth(),
                     ) { Text(stringResource(R.string.family_generate_code)) }
                     Spacer(Modifier.height(8.dp))
                     HorizontalDivider()
                 }
 
-                // -------- Pending join requests (admin approval required) --------
+                // Cycle settings (admin)
                 item {
-                    Text(
-                        stringResource(R.string.family_requests_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
+                    Text(stringResource(R.string.family_cycle_title), style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.family_cycle_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
                 }
-                if (state.pendingRequests.isEmpty()) {
-                    item {
-                        Text(
-                            stringResource(R.string.family_no_requests),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        )
-                    }
-                } else {
-                    items(state.pendingRequests, key = { it.id }) { inv ->
-                        JoinRequestCard(
-                            inv = inv,
-                            onApprove = { viewModel.approveRequest(inv.id) },
-                            onReject = { viewModel.rejectRequest(inv.id) },
-                        )
+                item {
+                    val current = state.family
+                    if (current != null) {
+                        var day by remember(current.id) { mutableStateOf(current.monthStartDay) }
+                        var autoReset by remember(current.id) { mutableStateOf(current.autoResetPaidOnRollover) }
+                        var menuOpen by remember { mutableStateOf(false) }
+                        Card(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                ExposedDropdownMenuBox(expanded = menuOpen, onExpandedChange = { menuOpen = !menuOpen }) {
+                                    OutlinedTextField(
+                                        value = day.toString(),
+                                        onValueChange = {},
+                                        readOnly = true,
+                                        label = { Text(stringResource(R.string.family_cycle_start_day)) },
+                                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(menuOpen) },
+                                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                                    )
+                                    ExposedDropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                                        (1..28).forEach { d ->
+                                            DropdownMenuItem(text = { Text(d.toString()) },
+                                                onClick = { day = d; menuOpen = false })
+                                        }
+                                    }
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Switch(checked = autoReset, onCheckedChange = { autoReset = it })
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(stringResource(R.string.family_cycle_auto_reset))
+                                }
+                                Button(
+                                    onClick = { viewModel.updateCycleSettings(familyId, day, autoReset) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) { Text(stringResource(R.string.action_save)) }
+                            }
+                        }
                     }
                 }
 
                 item {
                     HorizontalDivider()
-                    Text(
-                        stringResource(R.string.family_invitations_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
+                    Text(stringResource(R.string.family_requests_title), style = MaterialTheme.typography.titleMedium)
+                }
+                if (state.pendingRequests.isEmpty()) {
+                    item { Text(stringResource(R.string.family_no_requests), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)) }
+                } else {
+                    items(state.pendingRequests, key = { it.id }) { inv ->
+                        JoinRequestCard(inv = inv,
+                            onApprove = { viewModel.approveRequest(inv.id) },
+                            onReject = { viewModel.rejectRequest(inv.id) })
+                    }
+                }
+
+                item {
+                    HorizontalDivider()
+                    Text(stringResource(R.string.family_invitations_title), style = MaterialTheme.typography.titleMedium)
                 }
                 if (state.pendingInvitations.isEmpty()) {
-                    item {
-                        Text(
-                            "—",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        )
-                    }
+                    item { Text("—", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)) }
                 } else {
                     items(state.pendingInvitations, key = { it.id }) { inv ->
                         IssuedCodeCard(inv = inv, onCancel = { viewModel.cancelInvite(inv.id) })
@@ -166,55 +164,46 @@ fun FamilyManagementScreen(
                 }
             } else {
                 item {
-                    Text(
-                        stringResource(R.string.family_member_notice),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                    Text(stringResource(R.string.family_member_notice), style = MaterialTheme.typography.bodyMedium)
                 }
             }
 
-            // -------- Members --------
             item {
                 HorizontalDivider()
-                Text(
-                    stringResource(R.string.family_members_title),
-                    style = MaterialTheme.typography.titleMedium,
-                )
+                Text(stringResource(R.string.family_members_title), style = MaterialTheme.typography.titleMedium)
             }
             items(state.members, key = { it.id }) { member ->
                 MemberCard(
                     member = member,
                     profile = state.profiles[member.userId],
+                    isCreator = state.family?.createdBy == member.userId,
+                    isAdmin = state.isAdmin,
+                    canToggleRole = state.isAdmin && state.family?.createdBy != member.userId,
                     canRemove = state.isAdmin && state.family?.createdBy != member.userId,
                     onRemove = { viewModel.removeMember(familyId, member.userId) },
+                    onToggleRole = {
+                        val newRole = if (member.roleEnum == Role.admin) Role.member else Role.admin
+                        viewModel.setMemberRole(familyId, member.userId, newRole)
+                    },
                 )
             }
 
-            // -------- Categories --------
             item {
                 HorizontalDivider()
-                Text(
-                    stringResource(R.string.family_categories_title),
-                    style = MaterialTheme.typography.titleMedium,
-                )
+                Text(stringResource(R.string.family_categories_title), style = MaterialTheme.typography.titleMedium)
             }
             if (state.isAdmin) {
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         OutlinedTextField(
-                            value = newCategory,
-                            onValueChange = { newCategory = it },
+                            value = newCategory, onValueChange = { newCategory = it },
                             label = { Text(stringResource(R.string.family_new_category)) },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f),
+                            singleLine = true, modifier = Modifier.weight(1f),
                         )
                         Spacer(Modifier.width(8.dp))
                         Button(
                             enabled = newCategory.isNotBlank(),
-                            onClick = {
-                                viewModel.addCategory(familyId, newCategory)
-                                newCategory = ""
-                            },
+                            onClick = { viewModel.addCategory(familyId, newCategory); newCategory = "" },
                         ) { Text(stringResource(R.string.action_add)) }
                     }
                 }
@@ -229,71 +218,45 @@ fun FamilyManagementScreen(
                         Text(cat.name, style = MaterialTheme.typography.bodyLarge)
                         if (state.isAdmin) {
                             IconButton(onClick = { viewModel.deleteCategory(cat.id) }) {
-                                Icon(
-                                    Icons.Filled.Delete,
-                                    contentDescription = stringResource(R.string.action_delete),
-                                )
+                                Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.action_delete))
                             }
                         }
                     }
                 }
             }
 
-            // -------- Danger zone (creator only) --------
             if (state.isCreator) {
                 item {
                     Spacer(Modifier.height(16.dp))
                     HorizontalDivider()
-                    Text(
-                        stringResource(R.string.family_danger_zone),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.error,
-                    )
+                    Text(stringResource(R.string.family_danger_zone), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
                 }
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f),
-                        ),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)),
                     ) {
                         Column(Modifier.padding(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    Icons.Filled.Warning,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.error,
-                                )
+                                Icon(Icons.Filled.Warning, null, tint = MaterialTheme.colorScheme.error)
                                 Spacer(Modifier.width(8.dp))
-                                Text(
-                                    stringResource(R.string.family_delete_warning_short),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium,
-                                )
+                                Text(stringResource(R.string.family_delete_warning_short), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                             }
                             Spacer(Modifier.height(12.dp))
                             Button(
                                 onClick = { showDeleteDialog = true },
                                 enabled = !state.deleting,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.error,
-                                    contentColor = Color.White,
-                                ),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = Color.White),
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 if (state.deleting) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(18.dp),
-                                        strokeWidth = 2.dp,
-                                        color = Color.White,
-                                    )
+                                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
                                     Spacer(Modifier.width(8.dp))
                                 }
                                 Text(stringResource(R.string.family_delete_button))
                             }
                         }
                     }
-                    Spacer(Modifier.height(8.dp))
                 }
             }
         }
@@ -302,60 +265,33 @@ fun FamilyManagementScreen(
             DeleteFamilyDialog(
                 familyName = state.family?.name.orEmpty(),
                 onDismiss = { showDeleteDialog = false },
-                onConfirm = {
-                    showDeleteDialog = false
-                    viewModel.deleteFamily(familyId)
-                },
+                onConfirm = { showDeleteDialog = false; viewModel.deleteFamily(familyId) },
             )
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DeleteFamilyDialog(
-    familyName: String,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-) {
+private fun DeleteFamilyDialog(familyName: String, onDismiss: () -> Unit, onConfirm: () -> Unit) {
     var typed by remember { mutableStateOf("") }
     val matches = typed.trim() == familyName.trim() && familyName.isNotBlank()
-
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = {
-            Icon(
-                Icons.Filled.Warning,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.error,
-            )
-        },
+        icon = { Icon(Icons.Filled.Warning, null, tint = MaterialTheme.colorScheme.error) },
         title = { Text(stringResource(R.string.family_delete_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(stringResource(R.string.family_delete_warning_long))
-                Text(
-                    stringResource(R.string.family_delete_type_name_hint, familyName),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                )
-                OutlinedTextField(
-                    value = typed,
-                    onValueChange = { typed = it },
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.onboarding_family_name)) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Text(stringResource(R.string.family_delete_type_name_hint, familyName), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                OutlinedTextField(value = typed, onValueChange = { typed = it }, singleLine = true,
+                    label = { Text(stringResource(R.string.onboarding_family_name)) }, modifier = Modifier.fillMaxWidth())
             }
         },
         confirmButton = {
-            TextButton(
-                enabled = matches,
-                onClick = onConfirm,
-                colors = ButtonDefaults.textButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error,
-                ),
-            ) { Text(stringResource(R.string.family_delete_confirm)) }
+            TextButton(enabled = matches, onClick = onConfirm,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
+                Text(stringResource(R.string.family_delete_confirm))
+            }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
@@ -364,29 +300,17 @@ private fun DeleteFamilyDialog(
 }
 
 @Composable
-private fun JoinRequestCard(
-    inv: Invitation,
-    onApprove: () -> Unit,
-    onReject: () -> Unit,
-) {
+private fun JoinRequestCard(inv: Invitation, onApprove: () -> Unit, onReject: () -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
-            Text(
-                inv.requesterName.ifBlank { inv.requesterEmail.ifBlank { inv.email } },
-                style = MaterialTheme.typography.titleMedium,
-            )
+            Text(inv.requesterName.ifBlank { inv.requesterEmail.ifBlank { inv.email } }, style = MaterialTheme.typography.titleMedium)
             if (inv.requesterEmail.isNotBlank()) {
-                Text(
-                    inv.requesterEmail,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                )
+                Text(inv.requesterEmail, style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
             }
-            Text(
-                stringResource(R.string.family_request_code_label, inv.code),
+            Text(stringResource(R.string.family_request_code_label, inv.code),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-            )
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = onApprove, modifier = Modifier.weight(1f)) {
@@ -405,18 +329,11 @@ private fun IssuedCodeCard(inv: Invitation, onCancel: () -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.padding(12.dp).fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                if (inv.email.isNotBlank()) {
-                    Text(inv.email, style = MaterialTheme.typography.bodyLarge)
-                }
-                Text(
-                    inv.code,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+                if (inv.email.isNotBlank()) Text(inv.email, style = MaterialTheme.typography.bodyLarge)
+                Text(inv.code, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
             }
             TextButton(onClick = onCancel) { Text(stringResource(R.string.action_cancel)) }
         }
@@ -427,29 +344,36 @@ private fun IssuedCodeCard(inv: Invitation, onCancel: () -> Unit) {
 private fun MemberCard(
     member: FamilyMember,
     profile: User?,
+    isCreator: Boolean,
+    isAdmin: Boolean,
+    canToggleRole: Boolean,
     canRemove: Boolean,
     onRemove: () -> Unit,
+    onToggleRole: () -> Unit,
 ) {
-    val displayName = profile?.fullName
-        ?.takeIf { it.isNotBlank() }
+    val displayName = profile?.fullName?.takeIf { it.isNotBlank() }
         ?: profile?.email?.takeIf { it.isNotBlank() }
         ?: stringResource(R.string.family_member_loading)
     Card(Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.padding(12.dp).fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
                 Text(displayName, style = MaterialTheme.typography.bodyLarge)
-                Text(
-                    member.role,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                )
+                val roleLabel = if (isCreator) stringResource(R.string.family_role_creator) else member.role
+                Text(roleLabel, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
             }
-            if (canRemove) {
-                TextButton(onClick = onRemove) { Text(stringResource(R.string.action_remove)) }
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (isAdmin && canToggleRole) {
+                    TextButton(onClick = onToggleRole) {
+                        Text(if (member.roleEnum == Role.admin) stringResource(R.string.family_revoke_admin)
+                             else stringResource(R.string.family_make_admin))
+                    }
+                }
+                if (canRemove) {
+                    TextButton(onClick = onRemove) { Text(stringResource(R.string.action_remove)) }
+                }
             }
         }
     }

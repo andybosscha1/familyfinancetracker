@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,24 +24,29 @@ fun OnboardingScreen(
     onFamilyReady: (String) -> Unit,
     onSignOut: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenAppLockSetup: () -> Unit,
     viewModel: OnboardingViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
     var mode by remember { mutableStateOf(OnboardingMode.Create) }
     var familyName by remember { mutableStateOf("") }
     var joinCode by remember { mutableStateOf("") }
+    var showLockPrompt by remember { mutableStateOf(false) }
+
+    // Once we know app-lock is not configured and we haven’t shown the prompt yet, fire it.
+    LaunchedEffect(state.checking, state.shouldPromptAppLock) {
+        if (!state.checking && state.shouldPromptAppLock) showLockPrompt = true
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.onboarding_title)) },
                 actions = {
-                    TextButton(onClick = onOpenSettings) {
-                        Text(stringResource(R.string.nav_settings))
+                    TextButton(onClick = onOpenSettings) { Text(stringResource(R.string.nav_settings)) }
+                    TextButton(onClick = { viewModel.signOut(); onSignOut() }) {
+                        Text(stringResource(R.string.action_sign_out))
                     }
-                    TextButton(onClick = {
-                        viewModel.signOut(); onSignOut()
-                    }) { Text(stringResource(R.string.action_sign_out)) }
                 },
             )
         }
@@ -56,8 +63,7 @@ fun OnboardingScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             if (state.families.isNotEmpty()) {
-                Text(stringResource(R.string.onboarding_your_families),
-                    style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.onboarding_your_families), style = MaterialTheme.typography.titleMedium)
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -80,11 +86,9 @@ fun OnboardingScreen(
                     }
                 }
                 HorizontalDivider()
-                Text(stringResource(R.string.onboarding_add_another),
-                    style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.onboarding_add_another), style = MaterialTheme.typography.titleMedium)
             } else {
-                Text(stringResource(R.string.onboarding_intro_title),
-                    style = MaterialTheme.typography.headlineMedium)
+                Text(stringResource(R.string.onboarding_intro_title), style = MaterialTheme.typography.headlineMedium)
                 Text(
                     stringResource(R.string.onboarding_intro_body),
                     style = MaterialTheme.typography.bodyLarge,
@@ -106,9 +110,11 @@ fun OnboardingScreen(
             }
 
             if (mode == OnboardingMode.Create) {
-                Text(stringResource(R.string.onboarding_create_hint),
+                Text(
+                    stringResource(R.string.onboarding_create_hint),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                )
                 OutlinedTextField(
                     value = familyName,
                     onValueChange = { familyName = it },
@@ -121,13 +127,14 @@ fun OnboardingScreen(
                     onClick = { viewModel.createFamily(familyName) { onFamilyReady(it) } },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(if (state.busy) stringResource(R.string.onboarding_creating)
-                         else stringResource(R.string.onboarding_create_button))
+                    Text(if (state.busy) stringResource(R.string.onboarding_creating) else stringResource(R.string.onboarding_create_button))
                 }
             } else {
-                Text(stringResource(R.string.onboarding_join_hint),
+                Text(
+                    stringResource(R.string.onboarding_join_hint),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                )
                 OutlinedTextField(
                     value = joinCode,
                     onValueChange = { new -> joinCode = new.filter { it.isDigit() }.take(6) },
@@ -142,14 +149,10 @@ fun OnboardingScreen(
                     onClick = { viewModel.submitJoinRequest(joinCode) },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(if (state.busy) stringResource(R.string.onboarding_joining)
-                         else stringResource(R.string.onboarding_join_button))
+                    Text(if (state.busy) stringResource(R.string.onboarding_joining) else stringResource(R.string.onboarding_join_button))
                 }
                 if (state.requestSubmitted) {
-                    Text(
-                        stringResource(R.string.onboarding_request_submitted),
-                        color = MaterialTheme.colorScheme.primary,
-                    )
+                    Text(stringResource(R.string.onboarding_request_submitted), color = MaterialTheme.colorScheme.primary)
                 }
             }
 
@@ -157,6 +160,31 @@ fun OnboardingScreen(
             state.info?.takeIf { !state.requestSubmitted }?.let {
                 Text(it, color = MaterialTheme.colorScheme.primary)
             }
+        }
+
+        if (showLockPrompt) {
+            AlertDialog(
+                onDismissRequest = {
+                    showLockPrompt = false
+                    viewModel.markAppLockPromptShown()
+                },
+                icon = { Icon(Icons.Filled.Lock, null, tint = MaterialTheme.colorScheme.primary) },
+                title = { Text(stringResource(R.string.app_lock_prompt_title)) },
+                text = { Text(stringResource(R.string.app_lock_prompt_body)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showLockPrompt = false
+                        viewModel.markAppLockPromptShown()
+                        onOpenAppLockSetup()
+                    }) { Text(stringResource(R.string.app_lock_prompt_enable)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showLockPrompt = false
+                        viewModel.markAppLockPromptShown()
+                    }) { Text(stringResource(R.string.app_lock_skip_for_now)) }
+                },
+            )
         }
     }
 }

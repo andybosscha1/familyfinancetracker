@@ -23,10 +23,6 @@ class FamilyRepository @Inject constructor(
     private val members = firestore.collection("familyMembers")
     private val categories = firestore.collection("categories")
 
-    /**
-     * Creates a new family and registers the creator as admin.
-     * Two sequential commits so rules see the admin member before category seeding.
-     */
     suspend fun createFamily(name: String, creatorUid: String): String {
         val familyRef = families.document()
         val memberRef = members.document(FamilyMember.docId(creatorUid, familyRef.id))
@@ -38,6 +34,8 @@ class FamilyRepository @Inject constructor(
                     "name" to name.trim(),
                     "createdBy" to creatorUid,
                     "memberIds" to listOf(creatorUid),
+                    "monthStartDay" to 1,
+                    "autoResetPaidOnRollover" to false,
                 )
             )
             set(
@@ -62,6 +60,14 @@ class FamilyRepository @Inject constructor(
 
     suspend fun getFamily(familyId: String): Family? =
         families.document(familyId).get().await().toObject(Family::class.java)
+
+    fun observeFamily(familyId: String): Flow<Family?> = callbackFlow {
+        val reg = families.document(familyId).addSnapshotListener { snap, err ->
+            if (err != null || snap == null) trySend(null)
+            else trySend(snap.toObject(Family::class.java))
+        }
+        awaitClose { reg.remove() }
+    }
 
     fun observeFamiliesForUser(userId: String): Flow<List<Family>> = callbackFlow {
         val reg = members.whereEqualTo("userId", userId)
@@ -94,7 +100,6 @@ class FamilyRepository @Inject constructor(
         return doc.toObject(FamilyMember::class.java)?.roleEnum
     }
 
-    /** Admin removes a member from the family. */
     suspend fun removeMember(familyId: String, memberUserId: String) {
         val memberRef = members.document(FamilyMember.docId(memberUserId, familyId))
         val familyRef = families.document(familyId)
@@ -104,11 +109,29 @@ class FamilyRepository @Inject constructor(
         }.await()
     }
 
-    /**
-     * Admin approves a pending join request: atomically adds [requesterUid] to
-     * `memberIds` and creates their `familyMembers` doc with role=member.
-     * Caller must be admin of [familyId]; enforced both client- and server-side.
-     */
+    /** Admin promotes or demotes another member. */
+    suspend fun setMemberRole(familyId: String, memberUserId: String, role: Role) {
+        members.document(FamilyMember.docId(memberUserId, familyId))
+            .update(
+                mapOf(
+                    "userId" to memberUserId,
+                    "familyId" to familyId,
+                    "role" to role.name,
+                )
+            ).await()
+    }
+
+    /** Admin-only: update billing-cycle preferences (monthStartDay + autoResetPaidOnRollover). */
+    suspend fun updateCycleSettings(familyId: String, monthStartDay: Int, autoReset: Boolean) {
+        val day = monthStartDay.coerceIn(1, 28)
+        families.document(familyId).update(
+            mapOf(
+                "monthStartDay" to day,
+                "autoResetPaidOnRollover" to autoReset,
+            )
+        ).await()
+    }
+
     suspend fun addMemberByAdmin(familyId: String, requesterUid: String) {
         val memberRef = members.document(FamilyMember.docId(requesterUid, familyId))
         val familyRef = families.document(familyId)
@@ -125,19 +148,6 @@ class FamilyRepository @Inject constructor(
         }.await()
     }
 
-    /**
-     * Cascade-deletes a whole family. Only the original creator can do this
-     * (Firestore rules enforce `createdBy == uid`).
-     *
-     * Order matters: child docs first, then the family doc, then the caller's
-     * own membership last. The reason: most child rules use `isMemberOf(...)`
-     * which reads the families doc, and the families-doc delete rule itself
-     * uses `isAdminOf(...)` which reads the caller's familyMembers doc. So we
-     * preserve both until the very end.
-     *
-     * Each step batches docs in chunks of 400 to stay under Firestore's 500
-     * write limit per batch.
-     */
     suspend fun deleteFamilyCascade(familyId: String, currentUid: String) {
         val transactions = firestore.collection("transactions")
         val budgets = firestore.collection("budgets")
@@ -148,16 +158,11 @@ class FamilyRepository @Inject constructor(
         deleteAllInQuery(categories.whereEqualTo("familyId", familyId))
         deleteAllInQuery(invitations.whereEqualTo("familyId", familyId))
 
-        // Delete every OTHER member's familyMembers doc; keep the caller's
-        // membership alive so the families-delete rule still sees them as admin.
         val memberDocs = members.whereEqualTo("familyId", familyId).get().await().documents
         val (own, others) = memberDocs.partition { it.getString("userId") == currentUid }
         deleteDocsInBatches(others)
 
-        // Delete the family doc itself (rule: admin && createdBy == uid).
         families.document(familyId).delete().await()
-
-        // Finally delete the caller's own membership doc (rule: userId == uid).
         deleteDocsInBatches(own)
     }
 

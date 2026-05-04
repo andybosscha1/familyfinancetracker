@@ -120,4 +120,52 @@
     <string name="nav_budgets">Budgets</string>
     <string name="nav_family">Family</string>
     <string name="nav_settings">Settings</string>
+    <!-- v2 additions: menu, search, edit, theme, app lock, cycle, admin roles -->
+    <string name="menu">Menu</string>
+    <string name="action_edit">Edit</string>
+    <string name="dashboard_search_placeholder">Search income and expenses…</string>
+    <string name="tx_edit_title">Edit transaction</string>
+    <string name="tx_delete_title">Delete transaction?</string>
+    <string name="tx_delete_confirm">This transaction will be permanently removed.</string>
+
+    <string name="theme_light">Light</string>
+    <string name="theme_sepia">Sepia (warm)</string>
+    <string name="theme_dark">Dark</string>
+
+    <string name="app_lock_none">Off</string>
+    <string name="app_lock_pin">PIN</string>
+    <string name="app_lock_pin_biometric">PIN + Biometric</string>
+    <string name="app_lock_setup_title">App lock</string>
+    <string name="app_lock_setup_body">Pick a 4–6 digit PIN. You can also enable biometric unlock if your device supports it.</string>
+    <string name="app_lock_prompt_title">Protect your family finances</string>
+    <string name="app_lock_prompt_body">Set up an app lock now so only you can open the app on this device. You can always turn it on later from Settings.</string>
+    <string name="app_lock_prompt_enable">Set up app lock</string>
+    <string name="app_lock_skip_for_now">Maybe later</string>
+    <string name="app_lock_pin_label">PIN</string>
+    <string name="app_lock_pin_confirm_label">Confirm PIN</string>
+    <string name="app_lock_pin_mismatch">PINs don\'t match</string>
+    <string name="app_lock_also_enable_biometric">Also use fingerprint / face</string>
+    <string name="app_lock_save">Save</string>
+    <string name="app_lock_unlock_title">Enter your PIN</string>
+    <string name="app_lock_unlock_subtitle">The app is locked. Use your PIN or biometrics to unlock.</string>
+    <string name="app_lock_biometric_title">Unlock Finance Tracker</string>
+    <string name="app_lock_biometric_subtitle">Confirm your identity to continue</string>
+    <string name="app_lock_use_pin_instead">Use PIN instead</string>
+    <string name="app_lock_use_biometric">Use biometrics</string>
+
+    <string name="settings_theme">Theme</string>
+    <string name="settings_app_lock">App lock</string>
+    <string name="settings_app_lock_current">Current state</string>
+    <string name="settings_enable_app_lock">Enable app lock</string>
+    <string name="settings_change_pin">Change PIN / biometric</string>
+    <string name="settings_lock_now">Lock now</string>
+    <string name="settings_disable_app_lock">Disable app lock</string>
+
+    <string name="family_cycle_title">Billing cycle</string>
+    <string name="family_cycle_description">Set the day each monthly cycle starts and whether to auto-reset paid expenses.</string>
+    <string name="family_cycle_start_day">Start day of month</string>
+    <string name="family_cycle_auto_reset">Auto-reset paid expenses on new cycle</string>
+    <string name="family_make_admin">Make admin</string>
+    <string name="family_revoke_admin">Revoke admin</string>
+    <string name="family_role_creator">creator</string>
 </resources>
