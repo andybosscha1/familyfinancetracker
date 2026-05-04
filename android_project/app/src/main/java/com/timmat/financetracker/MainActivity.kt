@@ -15,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
+import android.view.WindowManager
 import androidx.core.os.LocaleListCompat
 import com.timmat.financetracker.common.AppLockController
 import com.timmat.financetracker.data.model.AppTheme
@@ -32,6 +33,14 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Prevent the app content from appearing in screenshots and the recent-apps
+        // preview. Important for a finance app that shows balances, transactions,
+        // and the PIN entry screen.
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE,
+        )
 
         // Apply saved language before drawing so stringResource() picks correct locale.
         val tag = settingsRepository.language.tag
