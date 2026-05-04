@@ -2,7 +2,10 @@ package com.timmat.financetracker.ui.family
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.timmat.financetracker.R
+import com.timmat.financetracker.common.UiMessage
 import com.timmat.financetracker.data.model.Category
+import com.timmat.financetracker.data.model.Family
 import com.timmat.financetracker.data.model.FamilyMember
 import com.timmat.financetracker.data.model.Invitation
 import com.timmat.financetracker.data.model.Role
@@ -22,23 +25,20 @@ import javax.inject.Inject
 
 data class FamilyUiState(
     val isAdmin: Boolean = false,
+    val isCreator: Boolean = false,
+    val family: Family? = null,
     val members: List<FamilyMember> = emptyList(),
-    /** Map of userId -> resolved User profile (firstName/lastName/email). Missing users render as email/uid fallback. */
     val profiles: Map<String, User> = emptyMap(),
     val invitations: List<Invitation> = emptyList(),
     val categories: List<Category> = emptyList(),
-    val error: String? = null,
-    val info: String? = null,
-    /** The most recently created invitation code — shown prominently so the admin can share it. */
+    val error: UiMessage? = null,
+    val info: UiMessage? = null,
     val lastCreatedCode: String? = null,
+    val deleting: Boolean = false,
+    val deleted: Boolean = false,
 ) {
-    /** Join requests awaiting admin approval. */
-    val pendingRequests: List<Invitation>
-        get() = invitations.filter { it.status == "requested" }
-
-    /** Codes issued by admin but not yet used. */
-    val pendingInvitations: List<Invitation>
-        get() = invitations.filter { it.status == "pending" }
+    val pendingRequests: List<Invitation> get() = invitations.filter { it.status == "requested" }
+    val pendingInvitations: List<Invitation> get() = invitations.filter { it.status == "pending" }
 }
 
 @HiltViewModel
@@ -59,6 +59,11 @@ class FamilyViewModel @Inject constructor(
             val role = familyRepository.currentUserRole(familyId, uid)
             _state.update { it.copy(isAdmin = role == Role.admin) }
 
+            launch {
+                familyRepository.observeFamily(familyId).collect { family ->
+                    _state.update { it.copy(family = family, isCreator = family?.createdBy == uid) }
+                }
+            }
             launch {
                 familyRepository.observeMembers(familyId).collect { list ->
                     _state.update { it.copy(members = list) }
@@ -83,65 +88,85 @@ class FamilyViewModel @Inject constructor(
         if (needed.isEmpty()) return
         viewModelScope.launch {
             runCatching { userRepository.getByIds(needed) }
-                .onSuccess { fetched ->
-                    _state.update { it.copy(profiles = it.profiles + fetched) }
-                }
+                .onSuccess { fetched -> _state.update { it.copy(profiles = it.profiles + fetched) } }
         }
     }
 
     fun invite(familyId: String, email: String) {
         viewModelScope.launch {
             runCatching { invitationRepository.invite(familyId, email) }
-                .onSuccess { code ->
-                    _state.update {
-                        it.copy(info = "Invitation code generated", lastCreatedCode = code, error = null)
-                    }
-                }
-                .onFailure { err -> _state.update { it.copy(error = err.message) } }
+                .onSuccess { code -> _state.update { it.copy(info = UiMessage.Res(R.string.msg_invite_generated), lastCreatedCode = code, error = null) } }
+                .onFailure { err -> _state.update { it.copy(error = UiMessage.Raw(err.message ?: "")) } }
         }
     }
 
     fun approveRequest(invitationId: String) {
         viewModelScope.launch {
             runCatching { invitationRepository.approve(invitationId) }
-                .onSuccess { _state.update { it.copy(info = "Approved", error = null) } }
-                .onFailure { err -> _state.update { it.copy(error = err.message) } }
+                .onSuccess { _state.update { it.copy(info = UiMessage.Res(R.string.msg_approved), error = null) } }
+                .onFailure { err -> _state.update { it.copy(error = UiMessage.Raw(err.message ?: "")) } }
         }
     }
 
     fun rejectRequest(invitationId: String) {
         viewModelScope.launch {
             runCatching { invitationRepository.reject(invitationId) }
-                .onSuccess { _state.update { it.copy(info = "Rejected", error = null) } }
-                .onFailure { err -> _state.update { it.copy(error = err.message) } }
+                .onSuccess { _state.update { it.copy(info = UiMessage.Res(R.string.msg_rejected), error = null) } }
+                .onFailure { err -> _state.update { it.copy(error = UiMessage.Raw(err.message ?: "")) } }
         }
     }
 
     fun removeMember(familyId: String, userId: String) {
         viewModelScope.launch {
             runCatching { familyRepository.removeMember(familyId, userId) }
-                .onFailure { err -> _state.update { it.copy(error = err.message) } }
+                .onFailure { err -> _state.update { it.copy(error = UiMessage.Raw(err.message ?: "")) } }
+        }
+    }
+
+    fun setMemberRole(familyId: String, userId: String, role: Role) {
+        viewModelScope.launch {
+            runCatching { familyRepository.setMemberRole(familyId, userId, role) }
+                .onFailure { err -> _state.update { it.copy(error = UiMessage.Raw(err.message ?: "")) } }
         }
     }
 
     fun addCategory(familyId: String, name: String) {
         viewModelScope.launch {
             runCatching { categoryRepository.add(familyId, name) }
-                .onFailure { err -> _state.update { it.copy(error = err.message) } }
+                .onFailure { err -> _state.update { it.copy(error = UiMessage.Raw(err.message ?: "")) } }
         }
     }
 
     fun deleteCategory(categoryId: String) {
         viewModelScope.launch {
             runCatching { categoryRepository.delete(categoryId) }
-                .onFailure { err -> _state.update { it.copy(error = err.message) } }
+                .onFailure { err -> _state.update { it.copy(error = UiMessage.Raw(err.message ?: "")) } }
         }
     }
 
     fun cancelInvite(invitationId: String) {
         viewModelScope.launch {
             runCatching { invitationRepository.delete(invitationId) }
-                .onFailure { err -> _state.update { it.copy(error = err.message) } }
+                .onFailure { err -> _state.update { it.copy(error = UiMessage.Raw(err.message ?: "")) } }
+        }
+    }
+
+    fun updateCycleSettings(familyId: String, monthStartDay: Int, autoReset: Boolean) {
+        viewModelScope.launch {
+            runCatching { familyRepository.updateCycleSettings(familyId, monthStartDay, autoReset) }
+                .onSuccess { _state.update { it.copy(info = UiMessage.Res(R.string.msg_saved), error = null) } }
+                .onFailure { err -> _state.update { it.copy(error = UiMessage.Raw(err.message ?: "")) } }
+        }
+    }
+
+    fun deleteFamily(familyId: String) {
+        val uid = authRepository.currentUser?.uid ?: return
+        if (!_state.value.isCreator) return
+        viewModelScope.launch {
+            _state.update { it.copy(deleting = true, error = null) }
+            runCatching { familyRepository.deleteFamilyCascade(familyId, uid) }
+                .onSuccess { _state.update { it.copy(deleting = false, deleted = true) } }
+                .onFailure { err -> _state.update { it.copy(deleting = false, error = UiMessage.Raw(err.message ?: "")) } }
         }
     }
 

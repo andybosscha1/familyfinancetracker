@@ -3,6 +3,7 @@
 
     <string name="action_save">Opslaan</string>
     <string name="action_cancel">Annuleren</string>
+    <string name="action_confirm">Bevestigen</string>
     <string name="action_delete">Verwijderen</string>
     <string name="action_remove">Verwijderen</string>
     <string name="action_add">Toevoegen</string>
@@ -39,9 +40,17 @@
     <string name="dashboard_income">Inkomsten</string>
     <string name="dashboard_expenses">Uitgaven</string>
     <string name="dashboard_remaining">Resterend</string>
+    <string name="dashboard_unpaid">Onbetaald</string>
     <string name="dashboard_view_transactions">Alle transacties bekijken</string>
+    <string name="dashboard_view_all_history">Volledige transactiegeschiedenis</string>
     <string name="dashboard_six_month_chart">Laatste 6 maanden</string>
+    <string name="dashboard_show_chart">Toon 6-maandengrafiek</string>
+    <string name="dashboard_hide_chart">Verberg grafiek</string>
     <string name="dashboard_no_transactions">Deze maand nog geen transacties.</string>
+    <string name="dashboard_no_income">Deze maand nog geen inkomsten geregistreerd.</string>
+    <string name="dashboard_no_expenses">Deze maand nog geen uitgaven geregistreerd.</string>
+    <string name="dashboard_uncheck_all">Alles op onbetaald zetten</string>
+    <string name="dashboard_uncheck_all_confirm">Hiermee worden alle uitgaven van de huidige maand teruggezet op onbetaald. Doorgaan?</string>
 
     <string name="tx_title">Transacties</string>
     <string name="tx_add_title">Transactie toevoegen</string>
@@ -77,6 +86,15 @@
     <string name="family_request_code_label">Code %1$s</string>
     <string name="family_member_loading">Laden…</string>
 
+    <!-- Family danger zone (alleen aanmaker) -->
+    <string name="family_danger_zone">Gevaarzone</string>
+    <string name="family_delete_button">Dit gezin verwijderen</string>
+    <string name="family_delete_title">Gezin verwijderen?</string>
+    <string name="family_delete_warning_short">Alleen de aanmaker kan het gezin verwijderen. Hiermee wordt alles definitief gewist.</string>
+    <string name="family_delete_warning_long">Hiermee worden het gezin en al zijn leden, transacties, budgetten, categorieën en uitnodigingen permanent verwijderd. Andere leden verliezen direct hun toegang. Deze actie kan niet ongedaan worden gemaakt.</string>
+    <string name="family_delete_type_name_hint">Typ \"%1$s\" om te bevestigen:</string>
+    <string name="family_delete_confirm">Definitief verwijderen</string>
+
     <string name="settings_title">Instellingen</string>
     <string name="settings_language">Taal</string>
     <string name="settings_currency">Valuta</string>
@@ -93,4 +111,66 @@
     <string name="nav_budgets">Budgetten</string>
     <string name="nav_family">Gezin</string>
     <string name="nav_settings">Instellingen</string>
+    <!-- v2 additions -->
+    <string name="menu">Menu</string>
+    <string name="action_edit">Bewerken</string>
+    <string name="dashboard_search_placeholder">Zoek inkomsten en uitgaven…</string>
+    <string name="tx_edit_title">Transactie bewerken</string>
+    <string name="tx_delete_title">Transactie verwijderen?</string>
+    <string name="tx_delete_confirm">Deze transactie wordt permanent verwijderd.</string>
+
+    <string name="theme_light">Licht</string>
+    <string name="theme_sepia">Sepia (warm)</string>
+    <string name="theme_dark">Donker</string>
+
+    <string name="app_lock_none">Uit</string>
+    <string name="app_lock_pin">Pincode</string>
+    <string name="app_lock_pin_biometric">Pincode + Biometrie</string>
+    <string name="app_lock_setup_title">App-vergrendeling</string>
+    <string name="app_lock_setup_body">Kies een 4-cijferige pincode. Je kunt ook biometrische ontgrendeling inschakelen als je apparaat dit ondersteunt.</string>
+    <string name="app_lock_prompt_title">Bescherm je gezinsfinanciën</string>
+    <string name="app_lock_prompt_body">Stel nu een app-vergrendeling in zodat alleen jij de app op dit apparaat kunt openen. Je kunt dit later altijd inschakelen via Instellingen.</string>
+    <string name="app_lock_prompt_enable">App-vergrendeling instellen</string>
+    <string name="app_lock_skip_for_now">Misschien later</string>
+    <string name="app_lock_pin_label">Pincode</string>
+    <string name="app_lock_pin_confirm_label">Bevestig pincode</string>
+    <string name="app_lock_pin_mismatch">Pincodes komen niet overeen</string>
+    <string name="app_lock_also_enable_biometric">Ook vingerafdruk / gezicht gebruiken</string>
+    <string name="app_lock_save">Opslaan</string>
+    <string name="app_lock_unlock_title">Voer je pincode in</string>
+    <string name="app_lock_unlock_subtitle">De app is vergrendeld. Gebruik je pincode of biometrie om te ontgrendelen.</string>
+    <string name="app_lock_biometric_title">Finance Tracker ontgrendelen</string>
+    <string name="app_lock_biometric_subtitle">Bevestig je identiteit om door te gaan</string>
+    <string name="app_lock_use_pin_instead">Pincode gebruiken</string>
+    <string name="app_lock_use_biometric">Biometrie gebruiken</string>
+
+    <string name="settings_theme">Thema</string>
+    <string name="settings_app_lock">App-vergrendeling</string>
+    <string name="settings_app_lock_current">Huidige status</string>
+    <string name="settings_enable_app_lock">App-vergrendeling inschakelen</string>
+    <string name="settings_change_pin">Pincode / biometrie wijzigen</string>
+    <string name="settings_lock_now">Nu vergrendelen</string>
+    <string name="settings_disable_app_lock">App-vergrendeling uitschakelen</string>
+
+    <string name="family_cycle_title">Betalingscyclus</string>
+    <string name="family_cycle_description">Stel in op welke dag de maandelijkse cyclus begint en of betaalde uitgaven automatisch worden gereset.</string>
+    <string name="family_cycle_start_day">Startdag van de maand</string>
+    <string name="family_cycle_auto_reset">Betaalde uitgaven automatisch resetten bij nieuwe cyclus</string>
+    <string name="family_make_admin">Maak beheerder</string>
+    <string name="family_revoke_admin">Beheerder intrekken</string>
+    <string name="family_role_creator">aanmaker</string>
+
+    <!-- Runtime-emitted messages (shown via Snackbars / inline text) -->
+    <string name="msg_saved">Opgeslagen</string>
+    <string name="msg_approved">Goedgekeurd</string>
+    <string name="msg_rejected">Afgewezen</string>
+    <string name="msg_invite_generated">Uitnodigingscode aangemaakt</string>
+    <string name="msg_not_signed_in">Niet aangemeld</string>
+    <string name="msg_family_name_required">Gezinsnaam is verplicht</string>
+    <string name="msg_enter_6_digit_code">Voer de 6-cijferige code in</string>
+    <string name="msg_request_submitted">Verzoek ingediend.</string>
+
+    <!-- App lock runtime errors -->
+    <string name="app_lock_incorrect_pin">Onjuiste pincode</string>
+    <string name="app_lock_locked_out">Te veel pogingen. Probeer het over %1$d seconden opnieuw.</string>
 </resources>

@@ -4,6 +4,7 @@
     <!-- Common -->
     <string name="action_save">Save</string>
     <string name="action_cancel">Cancel</string>
+    <string name="action_confirm">Confirm</string>
     <string name="action_delete">Delete</string>
     <string name="action_remove">Remove</string>
     <string name="action_add">Add</string>
@@ -43,9 +44,17 @@
     <string name="dashboard_income">Income</string>
     <string name="dashboard_expenses">Expenses</string>
     <string name="dashboard_remaining">Remaining</string>
+    <string name="dashboard_unpaid">Unpaid</string>
     <string name="dashboard_view_transactions">View all transactions</string>
+    <string name="dashboard_view_all_history">View full transaction history</string>
     <string name="dashboard_six_month_chart">Last 6 months</string>
+    <string name="dashboard_show_chart">Show 6-month chart</string>
+    <string name="dashboard_hide_chart">Hide chart</string>
     <string name="dashboard_no_transactions">No transactions yet this month.</string>
+    <string name="dashboard_no_income">No income recorded this month.</string>
+    <string name="dashboard_no_expenses">No expenses recorded this month.</string>
+    <string name="dashboard_uncheck_all">Mark all as unpaid</string>
+    <string name="dashboard_uncheck_all_confirm">This will reset every expense for the current month back to unpaid. Continue?</string>
 
     <!-- Transactions -->
     <string name="tx_title">Transactions</string>
@@ -84,6 +93,15 @@
     <string name="family_request_code_label">Code %1$s</string>
     <string name="family_member_loading">Loading…</string>
 
+    <!-- Family danger zone (creator-only) -->
+    <string name="family_danger_zone">Danger zone</string>
+    <string name="family_delete_button">Delete this family</string>
+    <string name="family_delete_title">Delete family?</string>
+    <string name="family_delete_warning_short">Only the creator can delete the family. This permanently removes everything.</string>
+    <string name="family_delete_warning_long">This will permanently delete the family and all of its members, transactions, budgets, categories and invitations. Other members will lose access immediately. This action cannot be undone.</string>
+    <string name="family_delete_type_name_hint">Type \"%1$s\" to confirm:</string>
+    <string name="family_delete_confirm">Delete forever</string>
+
     <!-- Settings -->
     <string name="settings_title">Settings</string>
     <string name="settings_language">Language</string>
@@ -102,4 +120,66 @@
     <string name="nav_budgets">Budgets</string>
     <string name="nav_family">Family</string>
     <string name="nav_settings">Settings</string>
+    <!-- v2 additions: menu, search, edit, theme, app lock, cycle, admin roles -->
+    <string name="menu">Menu</string>
+    <string name="action_edit">Edit</string>
+    <string name="dashboard_search_placeholder">Search income and expenses…</string>
+    <string name="tx_edit_title">Edit transaction</string>
+    <string name="tx_delete_title">Delete transaction?</string>
+    <string name="tx_delete_confirm">This transaction will be permanently removed.</string>
+
+    <string name="theme_light">Light</string>
+    <string name="theme_sepia">Sepia (warm)</string>
+    <string name="theme_dark">Dark</string>
+
+    <string name="app_lock_none">Off</string>
+    <string name="app_lock_pin">PIN</string>
+    <string name="app_lock_pin_biometric">PIN + Biometric</string>
+    <string name="app_lock_setup_title">App lock</string>
+    <string name="app_lock_setup_body">Pick a 4-digit PIN. You can also enable biometric unlock if your device supports it.</string>
+    <string name="app_lock_prompt_title">Protect your family finances</string>
+    <string name="app_lock_prompt_body">Set up an app lock now so only you can open the app on this device. You can always turn it on later from Settings.</string>
+    <string name="app_lock_prompt_enable">Set up app lock</string>
+    <string name="app_lock_skip_for_now">Maybe later</string>
+    <string name="app_lock_pin_label">PIN</string>
+    <string name="app_lock_pin_confirm_label">Confirm PIN</string>
+    <string name="app_lock_pin_mismatch">PINs don\'t match</string>
+    <string name="app_lock_also_enable_biometric">Also use fingerprint / face</string>
+    <string name="app_lock_save">Save</string>
+    <string name="app_lock_unlock_title">Enter your PIN</string>
+    <string name="app_lock_unlock_subtitle">The app is locked. Use your PIN or biometrics to unlock.</string>
+    <string name="app_lock_biometric_title">Unlock Finance Tracker</string>
+    <string name="app_lock_biometric_subtitle">Confirm your identity to continue</string>
+    <string name="app_lock_use_pin_instead">Use PIN instead</string>
+    <string name="app_lock_use_biometric">Use biometrics</string>
+
+    <string name="settings_theme">Theme</string>
+    <string name="settings_app_lock">App lock</string>
+    <string name="settings_app_lock_current">Current state</string>
+    <string name="settings_enable_app_lock">Enable app lock</string>
+    <string name="settings_change_pin">Change PIN / biometric</string>
+    <string name="settings_lock_now">Lock now</string>
+    <string name="settings_disable_app_lock">Disable app lock</string>
+
+    <string name="family_cycle_title">Billing cycle</string>
+    <string name="family_cycle_description">Set the day each monthly cycle starts and whether to auto-reset paid expenses.</string>
+    <string name="family_cycle_start_day">Start day of month</string>
+    <string name="family_cycle_auto_reset">Auto-reset paid expenses on new cycle</string>
+    <string name="family_make_admin">Make admin</string>
+    <string name="family_revoke_admin">Revoke admin</string>
+    <string name="family_role_creator">creator</string>
+
+    <!-- Runtime-emitted messages (shown via Snackbars / inline text) -->
+    <string name="msg_saved">Saved</string>
+    <string name="msg_approved">Approved</string>
+    <string name="msg_rejected">Rejected</string>
+    <string name="msg_invite_generated">Invitation code generated</string>
+    <string name="msg_not_signed_in">Not signed in</string>
+    <string name="msg_family_name_required">Family name is required</string>
+    <string name="msg_enter_6_digit_code">Enter the 6-digit code</string>
+    <string name="msg_request_submitted">Request submitted.</string>
+
+    <!-- App lock runtime errors -->
+    <string name="app_lock_incorrect_pin">Incorrect PIN</string>
+    <string name="app_lock_locked_out">Too many attempts. Try again in %1$d seconds.</string>
 </resources>
